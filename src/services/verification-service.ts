@@ -31,6 +31,13 @@ export const sendVerificationCode = async (type: 'email' | 'sms', recipient: str
 
     if (!response.ok) {
       const errorText = await response.text();
+
+      // Tratamento específico para erro 401
+      if (response.status === 401) {
+        console.error('[VerificationService] ❌ Erro 401 - Não autorizado. Verifique a configuração da API.');
+        throw new Error('Não autorizado. Verifique a configuração do serviço de verificação.');
+      }
+
       throw new Error(`Erro na API: ${response.status} - ${errorText}`);
     }
 

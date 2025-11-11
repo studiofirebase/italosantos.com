@@ -70,7 +70,23 @@ export const verifyPhoneCode = async (confirmationResult: ConfirmationResult, co
 
 // Forgot Password
 export const sendAdminPasswordResetEmail = async (email: string) => {
-  await sendPasswordResetEmail(auth, email);
+  try {
+    await sendPasswordResetEmail(auth, email);
+    console.log('[Admin Auth Service] ✅ Email de recuperação enviado com sucesso para:', email);
+  } catch (error: any) {
+    console.error('[Admin Auth Service] ❌ Erro ao enviar email de recuperação:', error);
+
+    // Tratamento específico de erros do Firebase
+    if (error.code === 'auth/unauthorized-domain') {
+      throw new Error('Domínio não autorizado. Adicione este domínio no Firebase Console.');
+    } else if (error.code === 'auth/invalid-api-key') {
+      throw new Error('API Key inválida. Verifique a configuração do Firebase.');
+    } else if (error.code === 'auth/network-request-failed') {
+      throw new Error('Erro de rede. Verifique sua conexão com a internet.');
+    }
+
+    throw error;
+  }
 };
 
 // Ensure Admin document exists for the current user (used when account is created via FirebaseUI)
