@@ -1,0 +1,157 @@
+{
+  "hosting": {
+    "source": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "frameworksBackend": {
+      "region": "us-central1"
+    },
+    "rewrites": [
+      {
+        "source": "/genkit/twitter/**",
+        "function": "genkitTwitter"
+      },
+      {
+        "source": "/genkit/paypal/**",
+        "function": "genkitPayPal"
+      },
+      {
+        "source": "/genkit/social/**",
+        "function": "genkitSocial"
+      },
+      {
+        "source": "/genkit/facebook/**",
+        "function": "genkitSocial"
+      },
+      {
+        "source": "/genkit/instagram/**",
+        "function": "genkitSocial"
+      },
+      {
+        "source": "/genkit/mercadopago/**",
+        "function": "genkitSocial"
+      }
+    ]
+  },
+  "firestore": {
+    "database": "(default)",
+    "location": "us-central",
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "storage": {
+    "rules": "storage.rules"
+  },
+  "functions": [
+    {
+      "codebase": "default",
+      "source": "functions",
+      "runtime": "nodejs20",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    },
+    {
+      "codebase": "italo-santos",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ],
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ],
+      "source": "italo-santos"
+    }
+  ],
+  "emulators": {
+    "auth": {
+      "port": 9090,
+      "host": "127.0.0.1"
+    },
+    "firestore": {
+      "port": 8081,
+      "host": "127.0.0.1"
+    },
+    "functions": {
+      "port": 5001,
+      "host": "127.0.0.1"
+    },
+    "hosting": {
+      "port": 5003,
+      "host": "127.0.0.1"
+    },
+    "ui": {
+      "enabled": true,
+      "port": 4001,
+      "host": "127.0.0.1"
+    },
+    "singleProjectMode": true,
+    "storage": {
+      "port": 9198,
+      "host": "127.0.0.1"
+    },
+    "database": {
+      "port": 9001,
+      "host": "127.0.0.1"
+    },
+    "dataconnect": {
+      "dataDir": "dataconnect/.dataconnect/pgliteData",
+      "port": 9398,
+      "host": "127.0.0.1"
+    },
+    "apphosting": {
+      "port": 5004,
+      "rootDirectory": "./",
+      "startCommand": "npm run dev",
+      "host": "127.0.0.1"
+    }
+  },
+  "database": {
+    "rules": "database.rules.json"
+  },
+  "apphosting": [
+    {
+      "backendId": "italosantos",
+      "rootDir": "/",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "functions"
+      ],
+      "alwaysDeployFromSource": true
+    },
+    {
+      "backendId": "italo",
+      "rootDir": "/",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "functions"
+      ]
+    }
+  ],
+  "dataconnect": {
+    "source": "dataconnect"
+  },
+  "remoteconfig": {
+    "template": "remoteconfig.template.json"
+  },
+  "extensions": {}
+}

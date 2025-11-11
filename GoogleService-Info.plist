@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>479719049222-4gnoau4r3k079tm26j4ci5d1r0f51bab.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.479719049222-4gnoau4r3k079tm26j4ci5d1r0f51bab</string>
+	<key>API_KEY</key>
+	<string>AIzaSyAthr14gXzWamVNI5E0aIZyvADrTbkVd7U</string>
+	<key>GCM_SENDER_ID</key>
+	<string>479719049222</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>italosantos.com</string>
+	<key>PROJECT_ID</key>
+	<string>creatorsphere-srajp</string>
+	<key>STORAGE_BUCKET</key>
+	<string>creatorsphere-srajp.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:479719049222:ios:62fe98ca40d81504555b87</string>
+	<key>DATABASE_URL</key>
+	<string>https://creatorsphere-srajp-default-rtdb.firebaseio.com</string>
+</dict>
+</plist>

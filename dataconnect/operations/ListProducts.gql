@@ -1,0 +1,13 @@
+query ListProducts @auth(level: USER) {
+  productServices( # Assumindo que "Products" se refere a ProductService
+    # where: { userUid: { eq_expr: "auth.uid" } } # Filtra por produtos do usuário autenticado
+  ) {
+    name
+    price
+    currency
+    isActive
+    description
+    imageUrl
+    # Adicione outros campos de ProductService que você quer retornar
+  }
+}

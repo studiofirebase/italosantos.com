@@ -1,0 +1,20 @@
+mutation CreateProductService($name: String!, $price: Float!, $currency: String!, $isActive: Boolean!, $description: String, $imageUrl: String) @auth(level: USER) {
+  productService_create(
+    input: {
+      name: $name
+      price: $price
+      currency: $currency
+      isActive: $isActive
+      description: $description
+      imageUrl: $imageUrl
+      # O userUid será preenchido automaticamente pelo Data Connect com base na autenticação
+    }
+  ) {
+    name
+    price
+    currency
+    isActive
+    description
+    imageUrl
+  }
+}

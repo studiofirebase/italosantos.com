@@ -1,0 +1,19 @@
+mutation CreateProduct($name: String!, $price: Float!, $currency: String!, $isActive: Boolean!, $description: String, $imageUrl: String) @auth(level: USER) {
+  productService_create( # Assumindo que "Product" se refere a ProductService
+    input: {
+      name: $name
+      price: $price
+      currency: $currency
+      isActive: $isActive
+      description: $description
+      imageUrl: $imageUrl
+    }
+  ) {
+    name
+    price
+    currency
+    isActive
+    description
+    imageUrl
+  }
+}

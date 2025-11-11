@@ -1,0 +1,12 @@
+query GetUserPosts @auth(level: USER) {
+  posts(
+    where: { userUid: { eq_expr: "auth.uid" } } # Filtra por posts do usuário autenticado
+  ) {
+    id
+    status
+    createdAt
+    caption
+    mediaAssetIds
+    # Adicione outros campos de Post que você quer retornar
+  }
+}

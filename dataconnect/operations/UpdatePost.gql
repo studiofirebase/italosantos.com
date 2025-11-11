@@ -1,0 +1,16 @@
+mutation UpdatePost($id: UUID!, $caption: String!) @auth(level: USER) {
+  post_update(
+    # Assegura que apenas o autor do post possa atualizá-lo
+    first: {
+      where: {
+        id: { eq: $id },
+        userUid: { eq_expr: "auth.uid" } # Garante que apenas o próprio usuário pode atualizar seu post
+      }
+    },
+    input: { caption: $caption }
+  ) {
+    id
+    caption
+    updatedAt
+  }
+}

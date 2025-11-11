@@ -1,0 +1,12 @@
+mutation DeleteProduct($id: UUID!) @auth(level: USER) {
+  productService_delete(
+    first: {
+      where: {
+        id: { eq: $id },
+        userUid: { eq_expr: "auth.uid" } # Garante que apenas o próprio usuário pode deletar seu produto
+      }
+    }
+  ) {
+    id
+  }
+}

@@ -1,0 +1,74 @@
+# dataconnect/schema.graphql (ou types.graphql)
+
+type User @table {
+  displayName: String!
+  email: String!
+  createdAt: Timestamp!
+  photoUrl: String
+  paypalEmail: String
+  publicProfileSlug: String
+}
+
+type SocialAccount @table {
+  user: User!
+  platform: String!
+  accessToken: String!
+  accountIdentifier: String!
+  refreshToken: String
+  status: String
+  lastSyncedAt: Timestamp
+}
+
+type MediaAsset @table {
+  user: User!
+  fileName: String!
+  url: String!
+  mediaType: String!
+  createdAt: Timestamp!
+  width: Int
+  height: Int
+  duration: Int
+}
+
+type Post @table {
+  user: User!
+  status: String!
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+  caption: String
+  scheduledAt: Timestamp
+  publishedAt: Timestamp
+  mediaAssetIds: [UUID]
+}
+
+type PlatformPost @table {
+  post: Post!
+  socialAccount: SocialAccount!
+  status: String!
+  platformPostId: String
+  publishedUrl: String
+  errorDetails: String
+}
+
+type ProductService @table {
+  user: User!
+  name: String!
+  price: Float!
+  currency: String!
+  isActive: Boolean!
+  createdAt: Timestamp!
+  updatedAt: Timestamp!
+  description: String
+  imageUrl: String
+}
+
+type Transaction @table {
+  user: User!
+  productService: ProductService
+  paypalTransactionId: String!
+  amount: Float!
+  currency: String!
+  status: String!
+  receivedAt: Timestamp!
+  payerEmail: String
+}

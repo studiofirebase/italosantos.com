@@ -1,0 +1,16 @@
+mutation UpdateProduct($id: UUID!, $isActive: Boolean!) @auth(level: USER) {
+  productService_update(
+    first: {
+      where: {
+        id: { eq: $id },
+        userUid: { eq_expr: "auth.uid" } # Garante que apenas o próprio usuário pode atualizar seu produto
+      }
+    },
+    input: { isActive: $isActive }
+  ) {
+    id
+    name
+    isActive
+    updatedAt
+  }
+}

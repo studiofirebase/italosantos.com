@@ -1,0 +1,20 @@
+mutation UpdateUserProfile($displayName: String, $photoUrl: String, $paypalEmail: String) @auth(level: USER) {
+  user_update(
+    first: {
+      where: {
+        uid: { eq_expr: "auth.uid" } # Garante que o usuário só pode atualizar o próprio perfil
+      }
+    },
+    input: {
+      displayName: $displayName
+      photoUrl: $photoUrl
+      paypalEmail: $paypalEmail
+    }
+  ) {
+    uid # Assumindo que User tem um campo uid
+    displayName
+    photoUrl
+    paypalEmail
+    updatedAt # Assumindo que User tem um campo updatedAt
+  }
+}

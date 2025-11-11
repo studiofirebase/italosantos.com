@@ -1,0 +1,740 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Estilos para o Quill Editor */
+.quill-editor-wrapper {
+  position: relative;
+}
+
+.quill-editor-wrapper .ql-container {
+  border: 2px solid #4b5563 !important;
+  border-radius: 0 0 0.5rem 0.5rem !important;
+  background-color: #111827 !important;
+  color: #ffffff !important;
+  font-size: 16px !important;
+  min-height: 350px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3) !important;
+}
+
+.quill-editor-wrapper .ql-toolbar {
+  border: 2px solid #4b5563 !important;
+  border-bottom: none !important;
+  border-radius: 0.5rem 0.5rem 0 0 !important;
+  background-color: #1f2937 !important;
+  padding: 12px !important;
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 4px !important;
+  align-items: center !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-formats {
+  display: flex !important;
+  align-items: center !important;
+  gap: 2px !important;
+  margin-right: 8px !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-separator {
+  background-color: #4b5563 !important;
+  width: 1px !important;
+  height: 24px !important;
+  margin: 0 8px !important;
+}
+
+.quill-editor-wrapper .ql-toolbar button {
+  color: #ffffff !important;
+  background-color: transparent !important;
+  border: none !important;
+  padding: 8px !important;
+  margin: 2px !important;
+  border-radius: 6px !important;
+  transition: all 0.2s ease !important;
+  font-size: 16px !important;
+  font-weight: 500 !important;
+  width: 36px !important;
+  height: 36px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  position: relative !important;
+  cursor: pointer !important;
+}
+
+.quill-editor-wrapper .ql-toolbar button::before {
+  content: '' !important;
+  position: absolute !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  width: 18px !important;
+  height: 18px !important;
+  background-size: contain !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-stroke {
+  stroke: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-fill {
+  fill: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-toolbar svg {
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-bold svg,
+.quill-editor-wrapper .ql-toolbar .ql-italic svg,
+.quill-editor-wrapper .ql-toolbar .ql-underline svg,
+.quill-editor-wrapper .ql-toolbar .ql-strike svg,
+.quill-editor-wrapper .ql-toolbar .ql-list svg,
+.quill-editor-wrapper .ql-toolbar .ql-link svg,
+.quill-editor-wrapper .ql-toolbar .ql-image svg,
+.quill-editor-wrapper .ql-toolbar .ql-blockquote svg,
+.quill-editor-wrapper .ql-toolbar .ql-code-block svg,
+.quill-editor-wrapper .ql-toolbar .ql-clean svg {
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+  fill: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-header svg {
+  width: 16px !important;
+  height: 16px !important;
+  display: block !important;
+  fill: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-color svg,
+.quill-editor-wrapper .ql-toolbar .ql-background svg {
+  width: 20px !important;
+  height: 20px !important;
+  display: block !important;
+  fill: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-align svg {
+  width: 18px !important;
+  height: 18px !important;
+  display: block !important;
+  fill: #ffffff !important;
+  stroke: #ffffff !important;
+}
+
+/* Estilos específicos para cada botão */
+.quill-editor-wrapper .ql-toolbar .ql-bold::before {
+  content: 'B' !important;
+  font-weight: bold !important;
+  font-size: 16px !important;
+  color: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-italic::before {
+  content: 'I' !important;
+  font-style: italic !important;
+  font-size: 16px !important;
+  color: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-underline::before {
+  content: 'U' !important;
+  text-decoration: underline !important;
+  font-size: 16px !important;
+  color: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-strike::before {
+  content: 'S' !important;
+  text-decoration: line-through !important;
+  font-size: 16px !important;
+  color: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-list.ql-ordered::before {
+  content: '1.' !important;
+  font-size: 14px !important;
+  color: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-list.ql-bullet::before {
+  content: '•' !important;
+  font-size: 18px !important;
+  color: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-link::before {
+  content: '🔗' !important;
+  font-size: 14px !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-image::before {
+  content: '🖼️' !important;
+  font-size: 14px !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-blockquote::before {
+  content: '"' !important;
+  font-size: 18px !important;
+  color: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-code-block::before {
+  content: '</>' !important;
+  font-size: 12px !important;
+  color: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-clean::before {
+  content: 'Tₓ' !important;
+  font-size: 12px !important;
+  color: #ffffff !important;
+  font-weight: bold !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-header.ql-picker::before {
+  content: 'H' !important;
+  font-size: 16px !important;
+  color: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-color::before {
+  content: 'A' !important;
+  font-size: 16px !important;
+  color: #ffffff !important;
+  text-decoration: underline !important;
+  text-decoration-color: #ff6b6b !important;
+  text-decoration-thickness: 3px !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-background::before {
+  content: 'A' !important;
+  font-size: 16px !important;
+  color: #ffffff !important;
+  background: linear-gradient(45deg, #ff6b6b, #4ecdc4) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-align.ql-picker::before {
+  content: '↔️' !important;
+  font-size: 14px !important;
+}
+
+/* Esconder ícones SVG originais */
+.quill-editor-wrapper .ql-toolbar button svg {
+  display: none !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-picker svg {
+  display: none !important;
+}
+
+/* Garantir que os ícones personalizados sejam visíveis */
+.quill-editor-wrapper .ql-toolbar button::before {
+  display: block !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-picker {
+  color: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-picker-label {
+  color: #ffffff !important;
+  border: none !important;
+  padding: 8px 12px !important;
+  background-color: transparent !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-picker-options {
+  background-color: #1f2937 !important;
+  border: 1px solid #4b5563 !important;
+  border-radius: 6px !important;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3) !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-picker-item {
+  color: #ffffff !important;
+  padding: 8px 12px !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-picker-item:hover {
+  background-color: #4b5563 !important;
+}
+
+.quill-editor-wrapper .ql-toolbar .ql-picker-item.ql-selected {
+  background-color: #60a5fa !important;
+  color: #000000 !important;
+}
+
+.quill-editor-wrapper .ql-toolbar button:hover {
+  background-color: #4b5563 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2) !important;
+}
+
+.quill-editor-wrapper .ql-toolbar button.ql-active {
+  background-color: #60a5fa !important;
+  color: #000000 !important;
+  box-shadow: 0 2px 4px rgba(96, 165, 250, 0.3) !important;
+}
+
+.quill-editor-wrapper .ql-editor {
+  background-color: #111827 !important;
+  color: #ffffff !important;
+  padding: 20px !important;
+  line-height: 1.7 !important;
+  font-size: 16px !important;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.quill-editor-wrapper .ql-editor p {
+  color: #f3f4f6 !important;
+  margin-bottom: 1.2em !important;
+  font-weight: 400 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1) !important;
+}
+
+.quill-editor-wrapper .ql-editor h1,
+.quill-editor-wrapper .ql-editor h2,
+.quill-editor-wrapper .ql-editor h3 {
+  color: #60a5fa !important;
+  margin-bottom: 0.8em !important;
+  font-weight: 600 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+.quill-editor-wrapper .ql-editor strong {
+  color: #fbbf24 !important;
+  font-weight: 700 !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2) !important;
+}
+
+.quill-editor-wrapper .ql-editor em {
+  color: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-editor ul,
+.quill-editor-wrapper .ql-editor ol {
+  color: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-editor li {
+  color: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-editor blockquote {
+  border-left: 3px solid #6b7280 !important;
+  margin: 0 0 1em 0 !important;
+  padding-left: 1em !important;
+  color: #ffffff !important;
+}
+
+.quill-editor-wrapper .ql-editor a {
+  color: #60a5fa !important;
+}
+
+.quill-editor-wrapper .ql-editor a:hover {
+  color: #93c5fd !important;
+}
+
+/* Estilos para o TipTap Editor */
+.ProseMirror {
+  outline: none !important;
+  min-height: 300px !important;
+  padding: 1rem !important;
+  line-height: 1.6 !important;
+  font-size: 16px !important;
+}
+
+.ProseMirror p {
+  margin-bottom: 1rem !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.ProseMirror h1,
+.ProseMirror h2,
+.ProseMirror h3 {
+  color: hsl(var(--primary)) !important;
+  font-weight: 600 !important;
+  margin-bottom: 0.75rem !important;
+  margin-top: 1.5rem !important;
+}
+
+.ProseMirror h1 {
+  font-size: 1.875rem !important;
+}
+
+.ProseMirror h2 {
+  font-size: 1.5rem !important;
+}
+
+.ProseMirror h3 {
+  font-size: 1.25rem !important;
+}
+
+.ProseMirror strong {
+  font-weight: 700 !important;
+  color: hsl(var(--primary) / 0.9) !important;
+}
+
+.ProseMirror em {
+  font-style: italic !important;
+}
+
+.ProseMirror u {
+  text-decoration: underline !important;
+}
+
+.ProseMirror s {
+  text-decoration: line-through !important;
+}
+
+.ProseMirror ul,
+.ProseMirror ol {
+  margin-bottom: 1rem !important;
+  padding-left: 1.5rem !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.ProseMirror li {
+  margin-bottom: 0.25rem !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.ProseMirror blockquote {
+  border-left: 4px solid hsl(var(--primary) / 0.5) !important;
+  padding-left: 1rem !important;
+  font-style: italic !important;
+  background-color: hsl(var(--primary) / 0.05) !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: 0 0.25rem 0.25rem 0 !important;
+  margin: 1rem 0 !important;
+  color: hsl(var(--foreground)) !important;
+}
+
+.ProseMirror pre {
+  background-color: hsl(var(--muted)) !important;
+  padding: 1rem !important;
+  border-radius: 0.5rem !important;
+  overflow-x: auto !important;
+  margin: 1rem 0 !important;
+}
+
+.ProseMirror code {
+  background-color: hsl(var(--muted)) !important;
+  padding: 0.25rem 0.5rem !important;
+  border-radius: 0.25rem !important;
+  font-family: monospace !important;
+  font-size: 0.875rem !important;
+}
+
+.ProseMirror a {
+  color: hsl(var(--primary)) !important;
+  text-decoration: underline !important;
+}
+
+.ProseMirror a:hover {
+  color: hsl(var(--primary) / 0.8) !important;
+}
+
+.ProseMirror img {
+  max-width: 100% !important;
+  height: auto !important;
+  border-radius: 0.5rem !important;
+  margin: 1rem 0 !important;
+}
+
+/* Placeholder */
+.ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: hsl(var(--muted-foreground));
+  pointer-events: none;
+  height: 0;
+}
+
+/* Estilos para HTML renderizado na seção Sobre */
+.prose h1 {
+  color: hsl(var(--primary)) !important;
+  font-size: 1.875rem !important;
+  font-weight: 700 !important;
+  margin-bottom: 1rem !important;
+  margin-top: 1.5rem !important;
+}
+
+.prose h1:first-child {
+  margin-top: 0 !important;
+}
+
+.prose h2 {
+  color: hsl(var(--primary) / 0.9) !important;
+  font-size: 1.5rem !important;
+  font-weight: 600 !important;
+  margin-bottom: 0.75rem !important;
+  margin-top: 1.25rem !important;
+}
+
+.prose h3 {
+  color: hsl(var(--primary) / 0.8) !important;
+  font-size: 1.25rem !important;
+  font-weight: 500 !important;
+  margin-bottom: 0.5rem !important;
+  margin-top: 1rem !important;
+}
+
+.prose p {
+  line-height: 1.6 !important;
+  margin-bottom: 1rem !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.prose ul {
+  list-style-type: disc !important;
+  list-style-position: inside !important;
+  margin-bottom: 1rem !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.prose li {
+  margin-left: 1rem !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.prose strong {
+  font-weight: 700 !important;
+  color: hsl(var(--primary) / 0.9) !important;
+}
+
+.prose em {
+  font-style: italic !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.prose blockquote {
+  border-left: 4px solid hsl(var(--primary) / 0.5) !important;
+  padding-left: 1rem !important;
+  font-style: italic !important;
+  background-color: hsl(var(--primary) / 0.05) !important;
+  padding: 0.5rem 1rem !important;
+  border-radius: 0 0.25rem 0.25rem 0 !important;
+  margin: 1rem 0 !important;
+  color: hsl(var(--muted-foreground)) !important;
+}
+
+.prose hr {
+  border-color: hsl(var(--primary) / 0.3) !important;
+  margin: 1.5rem 0 !important;
+}
+
+@layer base {
+  :root {
+    --background: 0 0% 0%;           /* Preto */
+    --foreground: 0 0% 100%;         /* Branco */
+
+    --card: 0 0% 8%;                /* Preto quase puro */
+    --card-foreground: 0 0% 100%;    /* Branco */
+
+    --popover: 0 0% 12%;            /* Preto/Cinza escuro */
+    --popover-foreground: 0 0% 100%; /* Branco */
+
+    --primary: 0 0% 100%;           /* Branco */
+    --primary-foreground: 0 0% 0%;   /* Preto */
+
+    --secondary: 0 0% 20%;          /* Cinza escuro */
+    --secondary-foreground: 0 0% 100%; /* Branco */
+
+    --muted: 0 0% 40%;              /* Cinza médio */
+    --muted-foreground: 0 0% 80%;   /* Cinza claro */
+
+    --accent: 0 0% 60%;             /* Cinza claro */
+    --accent-foreground: 0 0% 0%;   /* Preto */
+
+    --accent-shadow: 0 0% 40%;      /* Cinza médio */
+
+    --destructive: 0 0% 20%;        /* Cinza escuro */
+    --destructive-foreground: 0 0% 100%; /* Branco */
+
+    --border: 0 0% 30%;             /* Cinza */
+    --input: 0 0% 20%;              /* Cinza escuro */
+    --ring: 0 0% 80%;               /* Cinza claro */
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+
+    --card: 0 0% 8%;
+    --card-foreground: 0 0% 100%;
+
+    --popover: 0 0% 12%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 0 0% 100%;
+    --primary-foreground: 0 0% 0%;
+
+    --secondary: 0 0% 20%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 0 0% 40%;
+    --muted-foreground: 0 0% 80%;
+
+    --accent: 0 0% 60%;
+    --accent-foreground: 0 0% 0%;
+
+    --accent-shadow: 0 0% 40%;
+
+    --destructive: 0 0% 20%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 0 0% 30%;
+    --input: 0 0% 20%;
+    --ring: 0 0% 80%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+@layer utilities {
+  .animate-gradient-bg {
+    animation: gradient-bg 8s ease infinite;
+  }
+  @keyframes gradient-bg {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+
+  /* Line clamp utilities */
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+
+  /* Glass morphism effects */
+  .glass {
+    background: rgba(255, 255, 255, 0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+
+  .glass-dark {
+    background: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  /* Gradient text */
+  .gradient-text {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Hover effects */
+  .hover-lift {
+    transition: transform 0.2s ease-in-out;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-2px);
+  }
+
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 3px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  /* Glow effects for white elements */
+  .shadow-neon-white {
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 0 16px rgba(255, 255, 255, 0.6), 0 0 24px rgba(255, 255, 255, 0.3);
+  }
+
+  .text-shadow-neon-white {
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 0 16px rgba(255, 255, 255, 0.6), 0 0 24px rgba(255, 255, 255, 0.3);
+  }
+
+  /* Enhanced glow effects */
+  .shadow-neon-red-light {
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 0 16px rgba(255, 255, 255, 0.6), 0 0 24px rgba(255, 255, 255, 0.3);
+  }
+
+  .shadow-neon-red-strong {
+    box-shadow: 0 0 20px rgba(255, 255, 255, 1), 0 0 35px rgba(255, 255, 255, 0.8), 0 0 50px rgba(255, 255, 255, 0.5);
+  }
+
+  .text-shadow-neon-red-light {
+    text-shadow: 0 0 8px rgba(255, 255, 255, 0.9), 0 0 16px rgba(255, 255, 255, 0.6);
+  }
+
+  .text-shadow-neon-red {
+    text-shadow: 0 0 12px rgba(255, 255, 255, 1), 0 0 20px rgba(255, 255, 255, 0.8), 0 0 30px rgba(255, 255, 255, 0.5);
+  }
+
+  /* Hover effects for glow */
+  .shadow-neon-white:hover {
+    box-shadow: 0 0 12px rgba(255, 255, 255, 1), 0 0 24px rgba(255, 255, 255, 0.8), 0 0 36px rgba(255, 255, 255, 0.5);
+  }
+
+  .shadow-neon-red-light:hover {
+    box-shadow: 0 0 12px rgba(255, 255, 255, 1), 0 0 24px rgba(255, 255, 255, 0.8), 0 0 36px rgba(255, 255, 255, 0.5);
+  }
+}

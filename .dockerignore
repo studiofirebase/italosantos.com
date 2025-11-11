@@ -1,0 +1,85 @@
+# Controle de versão
+.git
+.gitignore
+.gitattributes
+
+# Dependências
+node_modules
+npm-debug.log
+yarn-error.log
+pnpm-debug.log
+
+# Build Next.js
+.next
+out
+build
+dist
+
+# Variáveis de ambiente
+.env
+.env.local
+.env*.local
+.env.development
+.env.production
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# Logs
+logs
+*.log
+
+# Testes
+coverage
+.nyc_output
+__tests__
+*.test.*
+*.spec.*
+tests
+
+# Documentação
+README.md
+CHANGELOG.md
+LICENSE
+docs
+*.md
+
+# Firebase
+.firebase
+firebase-debug.log
+firestore-debug.log
+
+# Outros
+.cache
+.vercel
+.turbo
+*.pem
+.eslintcache
+.stylelintcache
+
+# Cloud
+.gcloud
+.gcloudignore
+
+# Python
+__pycache__
+*.py[cod]
+venv
+
+# Certificados
+*.key
+*.crt
+certs/
+
+# GitHub
+.github
+firebaseui-web
+dist
