@@ -147,8 +147,6 @@ export function initializeFirebaseAdmin() {
       return existingApps[0];
     }
 
-    // Usar credenciais das variáveis ou fallback para ADC
-    const serviceAccount = getServiceAccountFromEnv();
     // Resolver databaseURL de forma robusta
     const dbUrl = (
       process.env.FIREBASE_DATABASE_URL ||
@@ -157,29 +155,69 @@ export function initializeFirebaseAdmin() {
       (process.env.FIREBASE_PROJECT_ID ? `https://${process.env.FIREBASE_PROJECT_ID}-default-rtdb.firebaseio.com` : undefined) ||
       (process.env.FIREBASE_PROJECT_ID ? `https://${process.env.FIREBASE_PROJECT_ID}.firebaseio.com` : undefined)
     );
+
     let app;
+
+    // 🔹 PRIORIDADE 1: Em desenvolvimento, sempre tentar arquivo local primeiro
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const fs = require('fs');
+        const path = require('path');
+        const serviceAccountPath = path.join(process.cwd(), 'service_account.json');
+
+        if (fs.existsSync(serviceAccountPath)) {
+          console.log('[Firebase Admin] 📄 Usando service_account.json local');
+          const localServiceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+          app = initializeApp({
+            credential: cert(localServiceAccount),
+            databaseURL: dbUrl,
+            projectId: localServiceAccount.project_id
+          });
+          console.log('[Firebase Admin] ✅ Firebase Admin SDK initialized successfully');
+          return app;
+        } else {
+          console.log('[Firebase Admin] ℹ️ service_account.json não encontrado. Tentando variáveis de ambiente...');
+        }
+      } catch (error) {
+        console.error('[Firebase Admin] ❌ Erro ao carregar service_account.json:', error);
+      }
+    }
+
+    // 🔹 PRIORIDADE 2: Tentar credenciais de variáveis de ambiente
+    const serviceAccount = getServiceAccountFromEnv();
+
     if (serviceAccount) {
-      if (!serviceAccount.private_key.includes('-----BEGIN PRIVATE KEY-----') || !serviceAccount.private_key.includes('-----END PRIVATE KEY-----')) {
-        console.error('[Firebase Admin] ❌ Chave privada incompleta/ inválida nas variáveis. Tentando ADC.');
-        app = initializeApp({
-          credential: applicationDefault(),
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          databaseURL: dbUrl,
-        } as any);
-      } else {
+      if (serviceAccount.private_key.includes('-----BEGIN PRIVATE KEY-----') &&
+        serviceAccount.private_key.includes('-----END PRIVATE KEY-----')) {
+        console.log('[Firebase Admin] � Usando credenciais de variáveis de ambiente');
         app = initializeApp({
           credential: cert(serviceAccount as any),
           databaseURL: dbUrl,
           projectId: serviceAccount.project_id
         });
+      } else {
+        console.error('[Firebase Admin] ❌ Chave privada incompleta/inválida nas variáveis.');
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('[Firebase Admin] ⚠️ Firebase Admin desabilitado em desenvolvimento.');
+          return null;
+        }
       }
-    } else {
-      // ADC: funciona em Firebase Hosting/Cloud Run/Functions e quando GOOGLE_APPLICATION_CREDENTIALS está definido
+    }
+
+    // 🔹 PRIORIDADE 3: Em produção (Cloud Run, Firebase Hosting), usar ADC
+    if (!app && process.env.NODE_ENV !== 'development') {
+      console.log('[Firebase Admin] 🔐 Usando Application Default Credentials em produção');
       app = initializeApp({
         credential: applicationDefault(),
         projectId: process.env.FIREBASE_PROJECT_ID,
         databaseURL: dbUrl,
       } as any);
+    }
+
+    // Se chegou aqui sem app, falhou
+    if (!app) {
+      console.warn('[Firebase Admin] ⚠️ Nenhuma credencial válida encontrada. Firebase Admin desabilitado.');
+      return null;
     }
 
     console.log('[Firebase Admin] ✅ Firebase Admin SDK initialized successfully');
