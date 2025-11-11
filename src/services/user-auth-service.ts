@@ -29,12 +29,16 @@ const PaymentDetailsSchema = z.object({
 });
 type PaymentDetails = z.infer<typeof PaymentDetailsSchema>;
 
-// Verificar se o Admin SDK está disponível
-const adminApp = getAdminApp();
-const isAdminAvailable = adminApp !== null;
-const db = isAdminAvailable ? getDatabase(adminApp!) : null;
-const storage = isAdminAvailable ? getStorage(adminApp!) : null;
-const bucket = storage ? storage.bucket(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`) : null;
+// Helper para obter recursos do Admin SDK (lazy loading)
+function getAdminResources() {
+  const adminApp = getAdminApp();
+  const isAdminAvailable = adminApp !== null;
+  const db = isAdminAvailable ? getDatabase(adminApp!) : null;
+  const storage = isAdminAvailable ? getStorage(adminApp!) : null;
+  const bucket = storage ? storage.bucket(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || `${process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID}.appspot.com`) : null;
+  
+  return { adminApp, isAdminAvailable, db, storage, bucket };
+}
 
 /**
  * Saves user data to Realtime Database and uploads their face image to Storage.
@@ -42,6 +46,8 @@ const bucket = storage ? storage.bucket(process.env.NEXT_PUBLIC_FIREBASE_STORAGE
  * @returns A Promise that resolves when the user is saved.
  */
 export async function saveUser(userData: UserData): Promise<void> {
+    const { isAdminAvailable, db, bucket } = getAdminResources();
+    
     if (!isAdminAvailable) {
         console.log('[saveUser] Admin SDK não disponível. Funcionalidade server-side desabilitada.');
         throw new Error('Server-side functionality not available. Admin SDK not configured.');
@@ -88,6 +94,8 @@ export async function getAllUsers(): Promise<Array<{
     email: string;
     imageUrl: string;
 }>> {
+    const { isAdminAvailable, db } = getAdminResources();
+    
     if (!isAdminAvailable) {
         console.log('[getAllUsers] Admin SDK não disponível. Retornando array vazio.');
         return [];
@@ -117,6 +125,8 @@ export async function getAllUsers(): Promise<Array<{
  * @returns A Promise that resolves when the details are saved.
  */
 export async function savePaymentDetails(paymentDetails: PaymentDetails): Promise<void> {
+  const { isAdminAvailable, db } = getAdminResources();
+  
   if (!isAdminAvailable) {
       console.log('[savePaymentDetails] Admin SDK não disponível. Funcionalidade server-side desabilitada.');
       throw new Error('Server-side functionality not available. Admin SDK not configured.');

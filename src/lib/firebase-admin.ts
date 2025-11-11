@@ -158,29 +158,27 @@ export function initializeFirebaseAdmin() {
 
     let app;
 
-    // 🔹 PRIORIDADE 1: Em desenvolvimento, sempre tentar arquivo local primeiro
-    if (process.env.NODE_ENV === 'development') {
-      try {
-        const fs = require('fs');
-        const path = require('path');
-        const serviceAccountPath = path.join(process.cwd(), 'service_account.json');
+    // 🔹 PRIORIDADE 1: SEMPRE tentar arquivo local primeiro (funciona em dev e build local)
+    try {
+      const fs = require('fs');
+      const path = require('path');
+      const serviceAccountPath = path.join(process.cwd(), 'service_account.json');
 
-        if (fs.existsSync(serviceAccountPath)) {
-          console.log('[Firebase Admin] 📄 Usando service_account.json local');
-          const localServiceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
-          app = initializeApp({
-            credential: cert(localServiceAccount),
-            databaseURL: dbUrl,
-            projectId: localServiceAccount.project_id
-          });
-          console.log('[Firebase Admin] ✅ Firebase Admin SDK initialized successfully');
-          return app;
-        } else {
-          console.log('[Firebase Admin] ℹ️ service_account.json não encontrado. Tentando variáveis de ambiente...');
-        }
-      } catch (error) {
-        console.error('[Firebase Admin] ❌ Erro ao carregar service_account.json:', error);
+      if (fs.existsSync(serviceAccountPath)) {
+        console.log('[Firebase Admin] 📄 Usando service_account.json local');
+        const localServiceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+        app = initializeApp({
+          credential: cert(localServiceAccount),
+          databaseURL: dbUrl,
+          projectId: localServiceAccount.project_id
+        });
+        console.log('[Firebase Admin] ✅ Firebase Admin SDK initialized successfully');
+        return app;
+      } else {
+        console.log('[Firebase Admin] ℹ️ service_account.json não encontrado. Tentando variáveis de ambiente...');
       }
+    } catch (error) {
+      console.error('[Firebase Admin] ❌ Erro ao carregar service_account.json:', error);
     }
 
     // 🔹 PRIORIDADE 2: Tentar credenciais de variáveis de ambiente
@@ -204,9 +202,9 @@ export function initializeFirebaseAdmin() {
       }
     }
 
-    // 🔹 PRIORIDADE 3: Em produção (Cloud Run, Firebase Hosting), usar ADC
-    if (!app && process.env.NODE_ENV !== 'development') {
-      console.log('[Firebase Admin] 🔐 Usando Application Default Credentials em produção');
+    // 🔹 PRIORIDADE 3: Apenas em ambientes GCP (Cloud Run tem K_SERVICE env var)
+    if (!app && process.env.K_SERVICE) {
+      console.log('[Firebase Admin] 🔐 Usando Application Default Credentials (ambiente GCP detectado)');
       app = initializeApp({
         credential: applicationDefault(),
         projectId: process.env.FIREBASE_PROJECT_ID,

@@ -7,7 +7,7 @@ export interface UserSubscription {
   planId: string;
   email: string;
   paymentId: string;
-  paymentMethod: 'pix' | 'paypal' | 'mercadopago' | 'google_pay';
+  paymentMethod: 'pix' | 'paypal' | 'mercadopago' | 'google_pay' | 'gift';
   status: 'active' | 'expired' | 'canceled' | 'pending';
   startDate: string;
   endDate: string;
@@ -45,7 +45,7 @@ class SubscriptionManager {
   // Função para sanitizar dados antes de enviar para o Firebase
   private sanitizeData(data: any): any {
     const sanitized: any = {};
-    
+
     for (const [key, value] of Object.entries(data)) {
       if (value === undefined || value === null) {
         // Converter undefined/null para string vazia ou valor padrão
@@ -64,15 +64,15 @@ class SubscriptionManager {
         sanitized[key] = value;
       }
     }
-    
+
     return sanitized;
   }
   async getAllSubscriptions(): Promise<UserSubscription[]> {
     const subscriptions: UserSubscription[] = [];
 
     try {
-  const adminApp = getAdminApp();
-  
+      const adminApp = getAdminApp();
+
 
       // 1. Buscar do Realtime Database
       if (adminApp) {
@@ -98,10 +98,10 @@ class SubscriptionManager {
               updatedAt: data.updatedAt || new Date().toISOString()
             }));
             subscriptions.push(...subs);
-    
+
           }
         } catch (error) {
-  
+
         }
       }
 
@@ -110,7 +110,7 @@ class SubscriptionManager {
       if (adminDb) {
         try {
           const subscribersSnapshot = await adminDb.collection('subscribers').get();
-          
+
           subscribersSnapshot.forEach((doc: any) => {
             const data = doc.data();
             const subscription: UserSubscription = {
@@ -129,17 +129,17 @@ class SubscriptionManager {
             };
             subscriptions.push(subscription);
           });
-          
-  
+
+
         } catch (error) {
-  
+
         }
       }
 
-      
+
       return subscriptions;
     } catch (error) {
-      
+
       return [];
     }
   }
@@ -155,7 +155,7 @@ class SubscriptionManager {
     try {
       console.log('[SubscriptionManager] Criando assinatura:', data);
       console.log('[SubscriptionManager] NODE_ENV:', process.env.NODE_ENV);
-      
+
       const now = new Date();
       const endDate = new Date();
       endDate.setMonth(endDate.getMonth() + 1);
@@ -165,19 +165,19 @@ class SubscriptionManager {
       // Tentar usar Firebase Admin SDK
       const adminApp = getAdminApp();
       const adminDb = getAdminDb();
-      
+
       console.log('[SubscriptionManager] Admin App obtido:', !!adminApp);
       console.log('[SubscriptionManager] Admin DB obtido:', !!adminDb);
-      
+
       if (adminApp && adminDb) {
         try {
           console.log('[SubscriptionManager] 🚀 Usando Firebase Admin SDK...');
-          
+
           // Salvar no Realtime Database
           const rtdb = getDatabase(adminApp);
           const subscriptionsRef = rtdb.ref('subscriptions');
           const newSubscriptionRef = subscriptionsRef.push();
-          
+
           await newSubscriptionRef.set({
             userId: data.userId || '',
             email: data.email || '',
@@ -191,10 +191,10 @@ class SubscriptionManager {
             createdAt: now.toISOString(),
             updatedAt: now.toISOString()
           });
-          
+
           subscriptionId = newSubscriptionRef.key!;
           console.log('[SubscriptionManager] ✅ Assinatura criada no RTDB (Admin):', subscriptionId);
-          
+
           // Salvar no Firestore
           const subscribersRef = adminDb.collection('subscribers');
           const newSubscriberDoc = await subscribersRef.add({
@@ -210,25 +210,25 @@ class SubscriptionManager {
             createdAt: now.toISOString(),
             updatedAt: now.toISOString()
           });
-          
+
           console.log('[SubscriptionManager] ✅ Assinatura criada no Firestore (Admin):', newSubscriberDoc.id);
-          
+
           // 🔄 ATUALIZAR PERFIL DO USUÁRIO para mostrar como assinante (IGUAL AOS OUTROS MÉTODOS)
           try {
             console.log('[SubscriptionManager]  Atualizando perfil do usuário...');
-            
+
             // Buscar usuário por email ou userId (MESMA LÓGICA DOS OUTROS MÉTODOS)
             const usersRef = adminDb.collection('users');
             let userQuery;
-            
+
             if (data.userId) {
               userQuery = await usersRef.where('uid', '==', data.userId).get();
             }
-            
+
             if (!userQuery || userQuery.empty) {
               userQuery = await usersRef.where('email', '==', data.email).get();
             }
-            
+
             if (userQuery && !userQuery.empty) {
               // ✅ USUÁRIO EXISTE - ATUALIZAR (IGUAL AO PAYPAL)
               const userDoc = userQuery.docs[0];
@@ -243,12 +243,12 @@ class SubscriptionManager {
                 amount: data.amount || 99.00,
                 updatedAt: now.toISOString()
               });
-              
+
               console.log('[SubscriptionManager] ✅ Perfil do usuário atualizado com sucesso!');
             } else {
               // ✅ USUÁRIO NÃO EXISTE - CRIAR NOVO (IGUAL AO PAYPAL)
               console.log('[SubscriptionManager]  Usuário não encontrado, criando novo perfil...');
-              
+
               await usersRef.add({
                 email: data.email,
                 uid: data.userId,
@@ -263,14 +263,14 @@ class SubscriptionManager {
                 createdAt: now.toISOString(),
                 updatedAt: now.toISOString()
               });
-              
+
               console.log('[SubscriptionManager] ✅ Novo perfil de usuário criado com sucesso!');
             }
           } catch (profileError) {
             console.error('[SubscriptionManager] ❌ Erro ao atualizar/criar perfil do usuário:', profileError);
             // Não falhar a criação da assinatura por causa do erro no perfil
           }
-          
+
         } catch (adminError) {
           console.error('[SubscriptionManager] ❌ Erro no Admin SDK:', adminError);
           throw adminError;
@@ -297,18 +297,18 @@ class SubscriptionManager {
   async updateSubscriptionStatus(subscriptionId: string, status: UserSubscription['status']): Promise<void> {
     try {
       console.log(`[SubscriptionManager] Atualizando status da assinatura ${subscriptionId} para ${status}`);
-      
+
       const adminApp = getAdminApp();
       // Atualizar no Realtime Database
       if (adminApp) {
         const rtdb = getDatabase(adminApp);
         const subscriptionRef = rtdb.ref(`subscriptions/${subscriptionId}`);
-        
+
         await subscriptionRef.update({
           status,
           updatedAt: new Date().toISOString()
         });
-        
+
         console.log('[SubscriptionManager] Status atualizado no RTDB');
       }
 
@@ -320,7 +320,7 @@ class SubscriptionManager {
           status,
           updatedAt: new Date().toISOString()
         });
-        
+
         console.log('[SubscriptionManager] Status atualizado no Firestore');
       }
     } catch (error) {
@@ -344,7 +344,7 @@ class SubscriptionManager {
 
         if (subscriptions) {
           const updates: any = {};
-          
+
           Object.entries(subscriptions).forEach(([id, data]: [string, any]) => {
             if (data.status === 'active' && data.endDate) {
               const endDate = new Date(data.endDate);
@@ -367,7 +367,7 @@ class SubscriptionManager {
       // Cleanup no Firestore
       if (adminDb) {
         const subscribersSnapshot = await adminDb.collection('subscribers').where('status', '==', 'active').get();
-        
+
         for (const doc of subscribersSnapshot.docs) {
           const data = doc.data();
           if (data.endDate) {
@@ -381,7 +381,7 @@ class SubscriptionManager {
             }
           }
         }
-        
+
         console.log(`[SubscriptionManager] ${expiredCount} assinaturas expiradas atualizadas no Firestore`);
       }
 
@@ -395,7 +395,7 @@ class SubscriptionManager {
   async isSubscriptionActive(userId: string): Promise<boolean> {
     try {
       console.log(`[SubscriptionManager] Verificando se assinatura está ativa para userId: ${userId}`);
-      
+
       const adminApp = getAdminApp();
       // Verificar no Realtime Database
       if (adminApp) {
@@ -403,16 +403,16 @@ class SubscriptionManager {
         const userRef = rtdb.ref(`users/${userId}/subscription`);
         const snapshot = await userRef.once('value');
         const subscriptionId = snapshot.val();
-        
+
         if (subscriptionId) {
           const subscriptionRef = rtdb.ref(`subscriptions/${subscriptionId}`);
           const subscriptionSnapshot = await subscriptionRef.once('value');
           const subscription = subscriptionSnapshot.val();
-          
+
           if (subscription && subscription.status === 'active') {
             const now = new Date();
             const endDate = new Date(subscription.endDate);
-            
+
             if (endDate > now) {
               console.log('[SubscriptionManager] Assinatura ativa encontrada no RTDB');
               return true;
@@ -428,7 +428,7 @@ class SubscriptionManager {
           .where('userId', '==', userId)
           .where('status', '==', 'active')
           .get();
-        
+
         if (!subscribersSnapshot.empty) {
           console.log('[SubscriptionManager] Assinatura ativa encontrada no Firestore');
           return true;
@@ -446,7 +446,7 @@ class SubscriptionManager {
   async getUserActiveSubscription(userId: string): Promise<UserSubscription | null> {
     try {
       console.log(`[SubscriptionManager] Buscando assinatura ativa para userId: ${userId}`);
-      
+
       const adminApp = getAdminApp();
       // Buscar no Realtime Database
       if (adminApp) {
@@ -454,16 +454,16 @@ class SubscriptionManager {
         const userRef = rtdb.ref(`users/${userId}/subscription`);
         const snapshot = await userRef.once('value');
         const subscriptionId = snapshot.val();
-        
+
         if (subscriptionId) {
           const subscriptionRef = rtdb.ref(`subscriptions/${subscriptionId}`);
           const subscriptionSnapshot = await subscriptionRef.once('value');
           const subscription = subscriptionSnapshot.val();
-          
+
           if (subscription && subscription.status === 'active') {
             const now = new Date();
             const endDate = new Date(subscription.endDate);
-            
+
             if (endDate > now) {
               console.log('[SubscriptionManager] Assinatura ativa encontrada no RTDB');
               return {
@@ -492,11 +492,11 @@ class SubscriptionManager {
           .where('userId', '==', userId)
           .where('status', '==', 'active')
           .get();
-        
+
         if (!subscribersSnapshot.empty) {
           const doc = subscribersSnapshot.docs[0];
           const data = doc.data();
-          
+
           console.log('[SubscriptionManager] Assinatura ativa encontrada no Firestore');
           return {
             id: doc.id,
@@ -526,7 +526,7 @@ class SubscriptionManager {
   async getSubscriptionByPaymentId(paymentId: string): Promise<UserSubscription | null> {
     try {
       console.log(`[SubscriptionManager] Buscando assinatura por paymentId: ${paymentId}`);
-      
+
       const adminApp = getAdminApp();
       // Buscar no Realtime Database
       if (adminApp) {
@@ -534,11 +534,11 @@ class SubscriptionManager {
         const subscriptionsRef = rtdb.ref('subscriptions');
         const snapshot = await subscriptionsRef.orderByChild('paymentId').equalTo(paymentId).once('value');
         const subscriptions = snapshot.val();
-        
+
         if (subscriptions) {
           const subscriptionId = Object.keys(subscriptions)[0];
           const subscription = subscriptions[subscriptionId];
-          
+
           console.log('[SubscriptionManager] Assinatura encontrada no RTDB');
           return {
             id: subscriptionId,
@@ -563,11 +563,11 @@ class SubscriptionManager {
         const subscribersSnapshot = await adminDb.collection('subscribers')
           .where('paymentId', '==', paymentId)
           .get();
-        
+
         if (!subscribersSnapshot.empty) {
           const doc = subscribersSnapshot.docs[0];
           const data = doc.data();
-          
+
           console.log('[SubscriptionManager] Assinatura encontrada no Firestore');
           return {
             id: doc.id,
@@ -597,7 +597,7 @@ class SubscriptionManager {
   async hasActiveSubscription(email: string): Promise<boolean> {
     try {
       console.log('[SubscriptionManager] 🔍 Verificando assinatura ativa para:', email);
-      
+
       const adminDb = getAdminDb();
       if (!adminDb) {
         console.log('[SubscriptionManager] ❌ Admin DB não disponível');
@@ -606,20 +606,20 @@ class SubscriptionManager {
 
       // 🔍 VERIFICAÇÃO DUPLA: Users + Subscribers
       console.log('[SubscriptionManager] 🔍 VERIFICAÇÃO DUPLA - Users + Subscribers');
-      
+
       // 1️⃣ VERIFICAR USERS COLLECTION (campo isSubscriber)
       console.log('[SubscriptionManager] 🔍 1️⃣ Verificando campo isSubscriber na coleção users...');
       const usersRef = adminDb.collection('users');
       const userQuery = await usersRef.where('email', '==', email).get();
-      
+
       let userIsSubscriber = false;
       let userDoc = null;
-      
+
       if (!userQuery.empty) {
         userDoc = userQuery.docs[0];
         const userData = userDoc.data();
         userIsSubscriber = userData.isSubscriber === true;
-        
+
         console.log('[SubscriptionManager] 🔍 Usuário encontrado na coleção users:', {
           email: userData.email,
           isSubscriber: userData.isSubscriber,
@@ -629,21 +629,21 @@ class SubscriptionManager {
       } else {
         console.log('[SubscriptionManager] ⚠️ Usuário NÃO encontrado na coleção users');
       }
-      
+
       // 2️⃣ VERIFICAR SUBSCRIBERS COLLECTION (status active)
       console.log('[SubscriptionManager] 🔍 2️⃣ Verificando status na coleção subscribers...');
       const subscribersRef = adminDb.collection('subscribers');
       const subscriberQuery = await subscribersRef.where('email', '==', email).get();
-      
+
       let hasActiveSubscription = false;
       let subscriptionDoc = null;
-      
+
       if (!subscriberQuery.empty) {
         console.log('[SubscriptionManager] 🔍 Encontradas', subscriberQuery.size, 'assinaturas para:', email);
-        
+
         // Verificar cada assinatura
         const now = new Date();
-        
+
         subscriberQuery.forEach((doc: any) => {
           const data = doc.data();
           console.log('[SubscriptionManager] 🔍 Analisando assinatura:', {
@@ -654,10 +654,10 @@ class SubscriptionManager {
             endDate: data.endDate,
             createdAt: data.createdAt
           });
-          
+
           if (data.status === 'active') {
             const endDate = new Date(data.endDate || data.expiresAt);
-            
+
             if (endDate > now) {
               hasActiveSubscription = true;
               subscriptionDoc = doc;
@@ -672,7 +672,7 @@ class SubscriptionManager {
                 endDate: endDate.toISOString(),
                 daysExpired: Math.ceil((now.getTime() - endDate.getTime()) / (1000 * 60 * 60 * 24))
               });
-              
+
               // 🔧 CORREÇÃO AUTOMÁTICA: Marcar como expirada
               try {
                 doc.ref.update({ status: 'expired' });
@@ -691,25 +691,25 @@ class SubscriptionManager {
       } else {
         console.log('[SubscriptionManager] ✅ Nenhuma assinatura encontrada na coleção subscribers');
       }
-      
+
       // 🔍 VERIFICAÇÃO FINAL: AMBOS devem estar corretos
       const finalResult = userIsSubscriber && hasActiveSubscription;
-      
+
       console.log('[SubscriptionManager] 🔍 VERIFICAÇÃO FINAL:', {
         'users.isSubscriber': userIsSubscriber,
         'subscribers.status_active': hasActiveSubscription,
         'RESULTADO_FINAL': finalResult
       });
-      
+
       // 🔧 SINCRONIZAÇÃO AUTOMÁTICA se houver inconsistência
       if (userIsSubscriber !== hasActiveSubscription) {
         console.log('[SubscriptionManager] ⚠️ INCONSISTÊNCIA DETECTADA! Sincronizando...');
-        
+
         if (userIsSubscriber && !hasActiveSubscription) {
           // Usuário marcado como assinante mas não tem assinatura ativa
           console.log('[SubscriptionManager] 🔧 Corrigindo: usuário marcado como assinante mas sem assinatura ativa');
           if (userDoc) {
-            await userDoc.ref.update({ 
+            await userDoc.ref.update({
               isSubscriber: false,
               subscriptionStatus: 'inactive',
               updatedAt: new Date().toISOString()
@@ -720,7 +720,7 @@ class SubscriptionManager {
           // Usuário tem assinatura ativa mas não está marcado como assinante
           console.log('[SubscriptionManager] 🔧 Corrigindo: usuário tem assinatura ativa mas não está marcado como assinante');
           if (userDoc) {
-            await userDoc.ref.update({ 
+            await userDoc.ref.update({
               isSubscriber: true,
               subscriptionStatus: 'active',
               updatedAt: new Date().toISOString()
@@ -728,11 +728,11 @@ class SubscriptionManager {
             console.log('[SubscriptionManager] ✅ Usuário marcado como assinante');
           }
         }
-        
+
         // Atualizar resultado após sincronização
         return hasActiveSubscription; // Se tem assinatura ativa, permitir
       }
-      
+
       return finalResult;
     } catch (error) {
       console.error('[SubscriptionManager] ❌ Erro ao verificar assinatura ativa:', error);

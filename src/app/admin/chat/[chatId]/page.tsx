@@ -9,7 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { ArrowLeft, Send, Paperclip, MapPin, Video, Image as ImageIcon, FileText, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Paperclip, MapPin, Video, Image as ImageIcon, FileText, Loader2, MessageSquare } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useProfileConfig } from '@/hooks/use-profile-config';
 import { formatDistanceToNow } from 'date-fns';
@@ -485,8 +485,8 @@ export default function AdminChatPage() {
                                 >
                                     <div
                                         className={`max-w-[70%] rounded-lg p-3 ${isAdmin
-                                                ? 'bg-primary text-primary-foreground'
-                                                : 'bg-muted'
+                                            ? 'bg-primary text-primary-foreground'
+                                            : 'bg-muted'
                                             }`}
                                     >
                                         {message.imageUrl && (
