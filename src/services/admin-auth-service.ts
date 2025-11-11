@@ -71,18 +71,34 @@ export const verifyPhoneCode = async (confirmationResult: ConfirmationResult, co
 // Forgot Password
 export const sendAdminPasswordResetEmail = async (email: string) => {
   try {
+    console.log('[Admin Auth Service] 🔄 Enviando email de recuperação para:', email);
     await sendPasswordResetEmail(auth, email);
     console.log('[Admin Auth Service] ✅ Email de recuperação enviado com sucesso para:', email);
   } catch (error: any) {
-    console.error('[Admin Auth Service] ❌ Erro ao enviar email de recuperação:', error);
+    console.error('[Admin Auth Service] ❌ Erro ao enviar email de recuperação:', {
+      code: error.code,
+      message: error.message,
+      customData: error.customData,
+      email: email
+    });
 
     // Tratamento específico de erros do Firebase
-    if (error.code === 'auth/unauthorized-domain') {
+    if (error.code === 'auth/user-not-found') {
+      throw new Error('Nenhuma conta encontrada com este email.');
+    } else if (error.code === 'auth/invalid-email') {
+      throw new Error('Formato de email inválido.');
+    } else if (error.code === 'auth/missing-email') {
+      throw new Error('Email é obrigatório.');
+    } else if (error.code === 'auth/unauthorized-domain') {
       throw new Error('Domínio não autorizado. Adicione este domínio no Firebase Console.');
     } else if (error.code === 'auth/invalid-api-key') {
       throw new Error('API Key inválida. Verifique a configuração do Firebase.');
     } else if (error.code === 'auth/network-request-failed') {
       throw new Error('Erro de rede. Verifique sua conexão com a internet.');
+    } else if (error.code === 'auth/too-many-requests') {
+      throw new Error('Muitas tentativas. Aguarde alguns minutos e tente novamente.');
+    } else if (error.message && error.message.includes('400')) {
+      throw new Error('Requisição inválida. Verifique se o email está correto e cadastrado no sistema.');
     }
 
     throw error;

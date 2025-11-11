@@ -32,6 +32,12 @@ export const sendVerificationCode = async (type: 'email' | 'sms', recipient: str
     if (!response.ok) {
       const errorText = await response.text();
 
+      // Tratamento específico para erro 400
+      if (response.status === 400) {
+        console.error('[VerificationService] ❌ Erro 400 - Requisição inválida:', errorText);
+        throw new Error('Requisição inválida. Verifique se o email/telefone está correto.');
+      }
+
       // Tratamento específico para erro 401
       if (response.status === 401) {
         console.error('[VerificationService] ❌ Erro 401 - Não autorizado. Verifique a configuração da API.');

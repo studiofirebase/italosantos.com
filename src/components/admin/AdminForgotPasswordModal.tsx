@@ -50,21 +50,29 @@ export default function AdminForgotPasswordModal({ open, onOpenChange }: AdminFo
             });
 
         } catch (error: any) {
-            console.error('[Forgot Password Modal] Erro ao enviar email:', error);
+            console.error('[Forgot Password Modal] Erro ao enviar email:', {
+                code: error.code,
+                message: error.message,
+                fullError: error
+            });
 
-            let errorMessage = "Não foi possível enviar o email de recuperação.";
+            // Usar mensagem customizada do serviço se disponível
+            let errorMessage = error.message || "Não foi possível enviar o email de recuperação.";
 
+            // Fallback para códigos de erro específicos do Firebase
             if (error.code === 'auth/user-not-found') {
                 errorMessage = "Nenhuma conta encontrada com este email.";
             } else if (error.code === 'auth/invalid-email') {
                 errorMessage = "Email inválido.";
             } else if (error.code === 'auth/too-many-requests') {
                 errorMessage = "Muitas tentativas. Tente novamente mais tarde.";
+            } else if (error.code === 'auth/missing-email') {
+                errorMessage = "Email é obrigatório.";
             }
 
             toast({
                 variant: "destructive",
-                title: "Erro",
+                title: "Erro ao enviar email",
                 description: errorMessage
             });
         } finally {
