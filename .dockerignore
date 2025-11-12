@@ -14,6 +14,7 @@ pnpm-debug.log
 out
 build
 dist
+**/dist
 
 # Variáveis de ambiente
 .env

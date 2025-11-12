@@ -293,97 +293,90 @@ const TwitterPhotos = () => {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     const [usingCache, setUsingCache] = useState(false);
 
-    // Carregar username do localStorage ou sessionStorage
-    useEffect(() => {
-        console.log('🔍 [FOTOS] Iniciando carregamento de username...');
-        const savedUsername = localStorage.getItem('twitter_username') || sessionStorage.getItem('twitter_username');
-        console.log('🔍 [FOTOS] Username encontrado:', savedUsername);
-        console.log('🔍 [FOTOS] localStorage.twitter_username:', localStorage.getItem('twitter_username'));
-        console.log('🔍 [FOTOS] sessionStorage.twitter_username:', sessionStorage.getItem('twitter_username'));
-
-        setCurrentUsername(savedUsername);
-        if (!savedUsername) {
-            console.log('❌ [FOTOS] Nenhum username encontrado');
-            setIsLoading(false);
-            setError('Nenhuma conta do Twitter conectada. Conecte sua conta na página de administração.');
-        } else {
-            console.log('✅ [FOTOS] Username carregado:', savedUsername);
-            // Tentar carregar do cache primeiro
-            const cachedPhotos = getCachedPhotos(savedUsername);
-            console.log('🔍 [FOTOS] Fotos do cache:', cachedPhotos?.length || 0);
-            if (cachedPhotos && cachedPhotos.length > 0) {
-                console.log('📦 [FOTOS] Usando cache com', cachedPhotos.length, 'fotos');
-                setTweets(cachedPhotos);
-                setUsingCache(true);
-                setIsLoading(false);
-
-                const stats = getCacheStats();
-                toast({
-                    title: '📦 Cache carregado',
-                    description: `${cachedPhotos.length} fotos do cache (${stats?.age || 'idade desconhecida'})`,
-                });
-            } else {
-                console.log('⚠️ [FOTOS] Cache vazio ou inválido, buscando da API');
-            }
-        }
-    }, []);
-
     useEffect(() => {
         const fetchTwitter = async () => {
-            if (!currentUsername) {
-                console.log('⚠️ [FOTOS] fetchTwitter abortado: currentUsername vazio');
-                return;
-            }
-
-            console.log('🔄 [FOTOS] Iniciando fetch para:', currentUsername);
-            // Se já temos cache, não mostrar loading (vai atualizar em background)
-            if (!usingCache) {
-                console.log('⏳ [FOTOS] Mostrando loading...');
-                setIsLoading(true);
-            } else {
-                console.log('📦 [FOTOS] Usando cache, atualizando em background...');
-            }
+            console.log('🔄 [FOTOS] Iniciando fetch híbrido (Firebase Auth + Twitter API)...');
+            setIsLoading(true);
             setError(null);
 
             try {
-                const params = new URLSearchParams({ username: currentUsername, max_results: '50' });
-                const apiUrl = `/api/twitter/fotos?${params.toString()}`;
-                console.log('🌐 [FOTOS] Chamando API:', apiUrl);
-                
-                const response = await fetch(apiUrl);
+                // Buscar usuário autenticado do Firebase
+                const { getAuth } = await import('firebase/auth');
+                const { app } = await import('@/lib/firebase');
+                const auth = getAuth(app);
+
+                const user = auth.currentUser;
+                if (!user) {
+                    console.log('❌ [FOTOS] Usuário não autenticado no Firebase');
+                    setError('Nenhuma conta do Twitter conectada. Por favor, autentique-se na página de administração.');
+                    setIsLoading(false);
+                    return;
+                }
+
+                console.log('✅ [FOTOS] Usuário autenticado:', user.uid);
+
+                // Obter token de autenticação
+                const accessToken = await user.getIdToken();
+                console.log('🔑 [FOTOS] Token obtido');
+
+                // Verificar cache primeiro
+                const cachedPhotos = getCachedPhotos(user.uid);
+                if (cachedPhotos && cachedPhotos.length > 0) {
+                    console.log('📦 [FOTOS] Usando cache com', cachedPhotos.length, 'fotos');
+                    setTweets(cachedPhotos);
+                    setUsingCache(true);
+                    setIsLoading(false);
+
+                    const stats = getCacheStats();
+                    toast({
+                        title: '📦 Cache carregado',
+                        description: `${cachedPhotos.length} fotos do cache (${stats?.age || 'idade desconhecida'})`,
+                    });
+                }
+
+                // Chamar API híbrida (não precisa passar username, a API busca do Firebase)
+                console.log('🌐 [FOTOS] Chamando API híbrida...');
+
+                const response = await fetch('/api/twitter/fotos', {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                    },
+                });
+
                 console.log('📡 [FOTOS] Resposta HTTP:', response.status, response.statusText);
-                
+
                 const data = await response.json();
                 console.log('📦 [FOTOS] Dados recebidos:', {
                     success: data.success,
                     tweets_count: data.tweets?.length || 0,
-                    has_next_token: !!data.next_token,
-                    error: data.error || data.message
+                    username: data.username,
+                    cached: data.cached,
+                    error: data.error
                 });
 
                 if (data.success) {
                     const newTweets = data.tweets || [];
                     console.log('✅ [FOTOS] Fotos carregadas com sucesso:', newTweets.length);
                     setTweets(newTweets);
-                    setNextToken(data.next_token);
+                    setCurrentUsername(data.username);
                     setUsingCache(false);
 
                     // Salvar no cache (5-10 primeiros)
                     if (newTweets.length > 0) {
                         console.log('💾 [FOTOS] Salvando', newTweets.length, 'fotos no cache');
-                        cachePhotos(newTweets, currentUsername);
+                        cachePhotos(newTweets, user.uid);
                     }
 
                     if (newTweets.length === 0) {
                         console.log('⚠️ [FOTOS] Nenhuma foto encontrada');
                         toast({
                             title: 'Aviso',
-                            description: `Nenhuma foto encontrada para @${currentUsername}`,
+                            description: `Nenhuma foto encontrada para @${data.username}`,
                         });
                     }
                 } else {
-                    console.log('❌ [FOTOS] Resposta de erro da API:', data.message);
-                    throw new Error(data.message || 'Falha ao buscar fotos do Twitter');
+                    console.log('❌ [FOTOS] Resposta de erro da API:', data.error);
+                    throw new Error(data.error || 'Falha ao buscar fotos do Twitter');
                 }
             } catch (e: any) {
                 const errorMessage = e.message || "Ocorreu um erro desconhecido.";
@@ -414,10 +407,8 @@ const TwitterPhotos = () => {
             }
         };
 
-        if (currentUsername) {
-            fetchTwitter();
-        }
-    }, [toast, currentUsername]);
+        fetchTwitter();
+    }, [toast]);
 
     const loadMore = async () => {
         if (!currentUsername || !nextToken) return;

@@ -1,78 +1,134 @@
-
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from '@/lib/token-utils';
+import { getAdminApp } from '@/lib/firebase-admin';
+import { getAuth } from 'firebase-admin/auth';
+import { getFirestore } from 'firebase-admin/firestore';
 
-const TWITTER_API_BASE = 'https://api.twitter.com/2';
-
-async function getUserIdByUsername(username: string, accessToken: string): Promise<string | null> {
-    const url = `${TWITTER_API_BASE}/users/by/username/${username}`;
-    const response = await fetch(url, {
-        headers: {
-            'Authorization': `Bearer ${accessToken}`,
-        },
-    });
-    if (!response.ok) {
-        console.error("Error fetching user ID:", await response.text());
-        return null;
-    }
-    const { data } = await response.json();
-    return data?.id || null;
-}
-
-export async function GET(req: NextRequest) {
-    const { searchParams } = new URL(req.url);
-    const username = searchParams.get('username');
-    const paginationToken = searchParams.get('pagination_token') || undefined;
-    const maxResultsParam = searchParams.get('max_results');
-    const maxResults = Math.max(10, Math.min(Number(maxResultsParam) || 100, 100));
-
-    if (!username) {
-        return NextResponse.json({ success: false, message: 'Nome de usuário não fornecido.' }, { status: 400 });
-    }
-
+export async function GET(request: NextRequest) {
     try {
-        const accessToken = await getToken('twitter', req.cookies);
+        console.log('[HYBRID-VIDEOS] Iniciando busca de vídeos...');
 
-        if (!accessToken) {
-            return NextResponse.json({ success: false, message: 'Não autenticado com o Twitter.' }, { status: 401 });
+        // Verificar token de autenticação do Firebase
+        const authHeader = request.headers.get('authorization');
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            console.error('[HYBRID-VIDEOS] Token não fornecido');
+            return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
         }
 
-        const userId = await getUserIdByUsername(username, accessToken);
+        const token = authHeader.split('Bearer ')[1];
+
+        // Verificar token do Firebase Admin
+        const adminApp = getAdminApp();
+        if (!adminApp) {
+            console.error('[HYBRID-VIDEOS] Firebase Admin não inicializado');
+            return NextResponse.json({ error: 'Erro ao inicializar Firebase Admin' }, { status: 500 });
+        }
+
+        const auth = getAuth(adminApp);
+        const decodedToken = await auth.verifyIdToken(token);
+        const uid = decodedToken.uid;
+
+        console.log('[HYBRID-VIDEOS] Usuário autenticado:', uid);
+
+        // Buscar username do Firestore
+        const db = getFirestore(adminApp);
+        const twitterAdminDoc = await db.collection('twitter_admins').doc(uid).get();
+
+        if (!twitterAdminDoc.exists) {
+            console.error('[HYBRID-VIDEOS] Username não encontrado no Firestore');
+            return NextResponse.json({ error: 'Usuário não possui Twitter autenticado. Por favor, autentique na página /admin/integrations' }, { status: 404 });
+        }
+
+        const userData = twitterAdminDoc.data() as { username: string; twitterUserId?: string };
+        const username = userData.username;
+        let userId = userData.twitterUserId;
+
+        console.log('[HYBRID-VIDEOS] Username:', username, '| UserID salvo:', userId);
+
+        // Verificar cache no Firestore
+        const cacheDoc = await db.collection('twitter_cache').doc(username).collection('media').doc('videos').get();
+
+        if (cacheDoc.exists) {
+            const cacheData = cacheDoc.data();
+            const cacheAge = Date.now() - new Date(cacheData!.timestamp).getTime();
+            const oneHour = 60 * 60 * 1000;
+
+            if (cacheAge < oneHour && cacheData!.data) {
+                console.log('[HYBRID-VIDEOS] ✅ Retornando cache válido');
+                return NextResponse.json({
+                    success: true,
+                    tweets: cacheData!.data,
+                    cached: true,
+                    username: username
+                });
+            }
+            console.log('[HYBRID-VIDEOS] ⚠️ Cache expirado');
+        }
+
+        // Buscar do Twitter API usando Bearer Token
+        const bearerToken = process.env.TWITTER_BEARER_TOKEN;
+        if (!bearerToken) {
+            console.error('[HYBRID-VIDEOS] ❌ Bearer Token não configurado');
+            return NextResponse.json({ error: 'Twitter Bearer Token não configurado' }, { status: 500 });
+        }
+
+        console.log('[HYBRID-VIDEOS] 🔄 Buscando da API do Twitter...');
+
+        // Se não tiver twitterUserId salvo, buscar da API (apenas uma vez)
         if (!userId) {
-            return NextResponse.json({ success: false, message: `Usuário @${username} não encontrado.` }, { status: 404 });
+            console.log('[HYBRID-VIDEOS] ⚠️ Twitter User ID não salvo, buscando da API...');
+            const userResponse = await fetch(`https://api.twitter.com/2/users/by/username/${username}`, {
+                headers: {
+                    'Authorization': `Bearer ${bearerToken}`,
+                },
+            });
+
+            if (!userResponse.ok) {
+                console.error('[HYBRID-VIDEOS] ❌ Erro ao buscar usuário:', userResponse.status);
+                return NextResponse.json({
+                    error: 'Rate limit atingido ou erro ao buscar usuário do Twitter. Aguarde alguns minutos.'
+                }, { status: userResponse.status });
+            }
+
+            const userDataFromApi = await userResponse.json();
+            userId = userDataFromApi.data?.id;
+
+            if (!userId) {
+                console.error('[HYBRID-VIDEOS] ❌ ID do usuário não encontrado');
+                return NextResponse.json({ error: 'ID do usuário não encontrado' }, { status: 404 });
+            }
+
+            // Salvar o twitterUserId no Firestore para não precisar buscar novamente
+            await db.collection('twitter_admins').doc(uid).update({
+                twitterUserId: userId
+            });
+            console.log('[HYBRID-VIDEOS] ✅ Twitter User ID salvo:', userId);
         }
 
-        const url = `${TWITTER_API_BASE}/users/${userId}/tweets`;
-        const params = new URLSearchParams({
-            'max_results': String(maxResults),
-            'expansions': 'attachments.media_keys,author_id',
-            'tweet.fields': 'created_at,text,public_metrics',
-            'media.fields': 'url,preview_image_url,type,media_key,width,height,alt_text,variants',
-            'user.fields': 'profile_image_url,username',
-        });
-        if (paginationToken) params.set('pagination_token', paginationToken);
+        // Buscar tweets com vídeos
+        const tweetsResponse = await fetch(
+            `https://api.twitter.com/2/users/${userId}/tweets?max_results=100&expansions=attachments.media_keys,author_id&tweet.fields=created_at,text,public_metrics&media.fields=url,preview_image_url,type,media_key,width,height,alt_text,variants&user.fields=profile_image_url,username`,
+            {
+                headers: {
+                    'Authorization': `Bearer ${bearerToken}`,
+                },
+            }
+        );
 
-        const twitterResponse = await fetch(`${url}?${params.toString()}`, {
-            headers: {
-                'Authorization': `Bearer ${accessToken}`,
-            },
-        });
-
-        if (!twitterResponse.ok) {
-            const errorBody = await twitterResponse.text();
-            console.error("Twitter API error:", errorBody);
-            return NextResponse.json({ success: false, message: 'Falha ao buscar tweets.', error: errorBody }, { status: 500 });
+        if (!tweetsResponse.ok) {
+            console.error('[HYBRID-VIDEOS] Erro ao buscar tweets:', tweetsResponse.status);
+            return NextResponse.json({ error: 'Erro ao buscar tweets' }, { status: tweetsResponse.status });
         }
 
-        const data = await twitterResponse.json();
-        const mediaIncludes = data.includes?.media || [];
-        const users = data.includes?.users || [];
+        const tweetsData = await tweetsResponse.json();
+        const mediaIncludes = tweetsData.includes?.media || [];
+        const users = tweetsData.includes?.users || [];
+
         type TwitterUser = { id: string; username?: string; profile_image_url?: string };
         const userMap = new Map<string, TwitterUser>(
             users.map((u: any) => [u.id, { id: u.id, username: u.username, profile_image_url: u.profile_image_url }])
         );
 
-        const tweetsWithVideos = (data.data || []).map((tweet: any) => {
+        const tweetsWithVideos = (tweetsData.data || []).map((tweet: any) => {
             const author = userMap.get(tweet.author_id);
             return {
                 id: tweet.id,
@@ -86,11 +142,30 @@ export async function GET(req: NextRequest) {
             };
         }).filter((tweet: any) => tweet.media.length > 0);
 
-        const nextToken = data.meta?.next_token;
-        return NextResponse.json({ success: true, tweets: tweetsWithVideos, next_token: nextToken });
+        console.log('[HYBRID-VIDEOS] Encontrados', tweetsWithVideos.length, 'tweets com vídeos');
 
-    } catch (error: any) {
-        console.error("Server-side error fetching videos:", error);
-        return NextResponse.json({ success: false, message: 'Erro interno do servidor.', error: error.message }, { status: 500 });
+        // Salvar cache no Firestore (limitar a 10 tweets)
+        const tweetsToCache = tweetsWithVideos.slice(0, 10);
+        await db.collection('twitter_cache').doc(username).collection('media').doc('videos').set({
+            data: tweetsToCache,
+            timestamp: new Date().toISOString(),
+        });
+
+        console.log('[HYBRID-VIDEOS] Cache salvo no Firestore');
+
+        return NextResponse.json({
+            success: true,
+            tweets: tweetsToCache,
+            cached: false,
+            username: username
+        });
+
+    } catch (error) {
+        console.error('[HYBRID-VIDEOS] Erro:', error);
+        return NextResponse.json({
+            success: false,
+            error: 'Erro ao buscar vídeos',
+            details: error instanceof Error ? error.message : 'Erro desconhecido'
+        }, { status: 500 });
     }
 }

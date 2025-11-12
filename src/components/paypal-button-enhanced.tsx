@@ -15,13 +15,9 @@ interface PayPalButtonProps {
     currency: string;
     onSuccess: () => void;
     description?: string;
-    /** ID do produto para o backend PayPal (usado na rota create-order) */
-    productId?: string;
-    /** ID do vendedor (sellerId) usado para recuperar credenciais PayPal no Firestore */
-    sellerId?: string;
 }
 
-export default function PayPalButton({ amount, currency, onSuccess, description, productId, sellerId }: PayPalButtonProps) {
+export default function PayPalButton({ amount, currency, onSuccess, description }: PayPalButtonProps) {
     const { toast } = useToast();
     const router = useRouter();
     const { isAuthenticated, userEmail } = useFaceIDAuth();
@@ -135,8 +131,17 @@ export default function PayPalButton({ amount, currency, onSuccess, description,
         return () => { cancelled = true; };
     }, []);
 
-    // Renderizar PayPalButtons independente de authStatus
-    // A validação real acontece em createOrder verificando múltiplas fontes
+    // Se está verificando autenticação, mostrar loading
+    if (authStatus === 'checking') {
+        return (
+            <div className="w-full h-12 bg-gray-100 rounded-lg flex items-center justify-center">
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                <span className="text-gray-600">Verificando autenticação...</span>
+            </div>
+        );
+    }
+
+    // Mesmo não autenticado, renderizar PayPalButtons para manter aparência original; validação ocorre em createOrder/onApprove
 
     if (!clientId) {
         return (
@@ -155,27 +160,15 @@ export default function PayPalButton({ amount, currency, onSuccess, description,
     };
 
     const createOrder = async (data: any, actions: any) => {
-        console.log('🔍 createOrder - authStatus:', authStatus);
-        console.log('🔍 createOrder - isAuthenticated:', isAuthenticated);
-        console.log('🔍 createOrder - firebaseUser:', firebaseUser?.email);
-
-        // VERIFICAÇÃO: Tentar pegar email de qualquer fonte disponível
-        const userEmailValue = firebaseUser?.email ||
-            userProfile?.email ||
-            userEmail ||
-            localStorage.getItem('customerEmail') ||
-            localStorage.getItem('userEmail');
-
-        console.log('🔍 createOrder - userEmailValue:', userEmailValue);
-
-        if (!userEmailValue) {
-            console.error('❌ Nenhum email encontrado para criar pedido PayPal');
-            throw new Error('Email do usuário é obrigatório');
+        // VERIFICAÇÃO DUPLA DE SEGURANÇA
+        if (authStatus !== 'authenticated') {
+            throw new Error('Usuário não autenticado');
         }
 
-        // Resolver sellerId e productId com fallbacks
-        const resolvedSellerId = sellerId || firebaseUser?.uid || userProfile?.uid || localStorage.getItem('sellerId') || 'default_seller';
-        const resolvedProductId = productId || 'subscription_monthly';
+        const userEmailValue = getUserEmail();
+        if (!userEmailValue) {
+            throw new Error('Email do usuário é obrigatório');
+        }
 
         try {
             const response = await fetch('/api/paypal/create-order', {
@@ -184,17 +177,20 @@ export default function PayPalButton({ amount, currency, onSuccess, description,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    // Backend espera productId e sellerId obrigatoriamente
-                    productId: resolvedProductId,
-                    sellerId: resolvedSellerId,
+                    amount: "99.00", // Valor fixo em BRL para PayPal
+                    currency: "BRL", // Forçar BRL para API também
+                    description: description || 'Assinatura Premium - 30 dias',
+                    buyerEmail: userEmailValue,
                 }),
             });
 
             const result = await response.json();
-            // Backend original retornava apenas { orderId } sem success
-            if (result.orderId) return result.orderId;
-            if (result.success && result.orderId) return result.orderId;
-            throw new Error(result.error || 'Erro ao criar pedido');
+
+            if (result.success) {
+                return result.orderId;
+            } else {
+                throw new Error(result.error || 'Erro ao criar pedido');
+            }
         } catch (error) {
             throw error;
         }
@@ -241,12 +237,12 @@ export default function PayPalButton({ amount, currency, onSuccess, description,
 
             const result = await response.json();
 
-            if (result.success || result.orderId || result.paymentId) {
+            if (result.success) {
                 const userEmail = getUserEmail();
 
                 try {
                     // ✅ SIMPLIFICADO: Ativar assinatura
-                    await activateSubscription(userEmail, result.paymentId || result.orderId || data.orderID);
+                    await activateSubscription(userEmail, result.paymentId || result.orderId);
 
                     toast({
                         title: '✅ Pagamento Aprovado!',
@@ -255,13 +251,9 @@ export default function PayPalButton({ amount, currency, onSuccess, description,
                     });
 
                     // Redirecionar para o perfil
-                    // Persistir flags locais de assinatura
-                    try {
-                        localStorage.setItem('hasPaid', 'true');
-                        localStorage.setItem('hasSubscription', 'true');
-                        if (userEmail) localStorage.setItem('customerEmail', userEmail);
-                    } catch { }
-                    setTimeout(() => { router.push('/assinante'); }, 1500);
+                    setTimeout(() => {
+                        router.push('/perfil');
+                    }, 2000);
 
                 } catch (error) {
                     toast({
@@ -271,7 +263,9 @@ export default function PayPalButton({ amount, currency, onSuccess, description,
                     });
 
                     // Sempre redirecionar, mesmo com erro
-                    setTimeout(() => { router.push('/assinante'); }, 1500);
+                    setTimeout(() => {
+                        router.push('/perfil');
+                    }, 2000);
                 }
             } else {
                 throw new Error(result.error || 'Erro ao capturar pagamento');
@@ -297,31 +291,13 @@ export default function PayPalButton({ amount, currency, onSuccess, description,
 
     return (
         <PayPalScriptProvider options={initialOptions}>
-            <div className="w-full min-h-[55px] relative">
+            <div className="w-full h-full">
                 <PayPalButtons
                     createOrder={createOrder}
                     onApprove={onApprove}
                     onError={onError}
                     disabled={isLoading}
-                    style={{
-                        layout: 'vertical',
-                        color: 'gold',
-                        shape: 'rect',
-                        label: 'paypal',
-                        height: 55,
-                        tagline: false
-                    }}
                 />
-
-                {/* Overlay de loading */}
-                {isLoading && (
-                    <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-lg z-10">
-                        <div className="bg-white rounded-lg p-4 flex flex-col items-center gap-2">
-                            <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
-                            <span className="text-sm font-medium text-gray-700">Processando pagamento...</span>
-                        </div>
-                    </div>
-                )}
             </div>
         </PayPalScriptProvider>
     );

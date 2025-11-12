@@ -141,92 +141,86 @@ const TwitterVideos = () => {
     const [usingCache, setUsingCache] = useState(false);
 
     useEffect(() => {
-        console.log('🔍 [VIDEOS] Iniciando carregamento de username...');
-        const savedUsername = localStorage.getItem('twitter_username') || sessionStorage.getItem('twitter_username');
-        console.log('🔍 [VIDEOS] Username encontrado:', savedUsername);
-        console.log('🔍 [VIDEOS] localStorage.twitter_username:', localStorage.getItem('twitter_username'));
-        console.log('🔍 [VIDEOS] sessionStorage.twitter_username:', sessionStorage.getItem('twitter_username'));
-        
-        setCurrentUsername(savedUsername);
-        if (!savedUsername) {
-            console.log('❌ [VIDEOS] Nenhum username encontrado');
-            setIsLoading(false);
-            setError('Nenhuma conta do Twitter conectada. Conecte sua conta na página de administração.');
-        } else {
-            console.log('✅ [VIDEOS] Username carregado:', savedUsername);
-            // Tentar carregar do cache primeiro
-            const cachedVideos = getCachedVideos(savedUsername);
-            console.log('🔍 [VIDEOS] Vídeos do cache:', cachedVideos?.length || 0);
-            if (cachedVideos && cachedVideos.length > 0) {
-                console.log('📦 [VIDEOS] Usando cache com', cachedVideos.length, 'vídeos');
-                setTweets(cachedVideos);
-                setUsingCache(true);
-                setIsLoading(false);
-
-                const stats = getCacheStats();
-                toast({
-                    title: '📦 Cache carregado',
-                    description: `${cachedVideos.length} vídeos do cache (${stats?.age || 'idade desconhecida'})`,
-                });
-            } else {
-                console.log('⚠️ [VIDEOS] Cache vazio ou inválido, buscando da API');
-            }
-        }
-    }, []);
-
-    useEffect(() => {
         const fetchTwitterVideos = async () => {
-            if (!currentUsername) {
-                console.log('⚠️ [VIDEOS] fetchTwitterVideos abortado: currentUsername vazio');
-                return;
-            }
-
-            console.log('🔄 [VIDEOS] Iniciando fetch para:', currentUsername);
-            // Se já temos cache, não mostrar loading (vai atualizar em background)
-            if (!usingCache) {
-                console.log('⏳ [VIDEOS] Mostrando loading...');
-                setIsLoading(true);
-            } else {
-                console.log('📦 [VIDEOS] Usando cache, atualizando em background...');
-            }
+            console.log('🔄 [VIDEOS] Iniciando fetch híbrido (Firebase Auth + Twitter API)...');
+            setIsLoading(true);
             setError(null);
 
             try {
-                const params = new URLSearchParams({ username: currentUsername, max_results: '50' });
-                const apiUrl = `/api/twitter/videos?${params.toString()}`;
-                console.log('🌐 [VIDEOS] Chamando API:', apiUrl);
-                
-                const response = await fetch(apiUrl);
+                // Buscar usuário autenticado do Firebase
+                const { getAuth } = await import('firebase/auth');
+                const { app } = await import('@/lib/firebase');
+                const auth = getAuth(app);
+
+                const user = auth.currentUser;
+                if (!user) {
+                    console.log('❌ [VIDEOS] Usuário não autenticado no Firebase');
+                    setError('Nenhuma conta do Twitter conectada. Por favor, autentique-se na página de administração.');
+                    setIsLoading(false);
+                    return;
+                }
+
+                console.log('✅ [VIDEOS] Usuário autenticado:', user.uid);
+
+                // Obter token de autenticação
+                const accessToken = await user.getIdToken();
+                console.log('🔑 [VIDEOS] Token obtido');
+
+                // Verificar cache primeiro
+                const cachedVideos = getCachedVideos(user.uid);
+                if (cachedVideos && cachedVideos.length > 0) {
+                    console.log('📦 [VIDEOS] Usando cache com', cachedVideos.length, 'vídeos');
+                    setTweets(cachedVideos);
+                    setUsingCache(true);
+                    setIsLoading(false);
+
+                    const stats = getCacheStats();
+                    toast({
+                        title: '📦 Cache carregado',
+                        description: `${cachedVideos.length} vídeos do cache (${stats?.age || 'idade desconhecida'})`,
+                    });
+                }
+
+                // Chamar API híbrida (não precisa passar username, a API busca do Firebase)
+                console.log('🌐 [VIDEOS] Chamando API híbrida...');
+
+                const response = await fetch('/api/twitter/videos', {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                    },
+                });
+
                 console.log('📡 [VIDEOS] Resposta HTTP:', response.status, response.statusText);
-                
+
                 const data = await response.json();
                 console.log('📦 [VIDEOS] Dados recebidos:', {
                     success: data.success,
                     tweets_count: data.tweets?.length || 0,
-                    has_next_token: !!data.next_token,
-                    error: data.error || data.message
+                    username: data.username,
+                    cached: data.cached,
+                    error: data.error
                 });
 
                 if (data.success) {
                     const newTweets = data.tweets || [];
                     console.log('✅ [VIDEOS] Vídeos carregados com sucesso:', newTweets.length);
                     setTweets(newTweets);
-                    setNextToken(data.next_token);
+                    setCurrentUsername(data.username);
                     setUsingCache(false);
 
                     // Salvar no cache (5-10 primeiros)
                     if (newTweets.length > 0) {
                         console.log('💾 [VIDEOS] Salvando', newTweets.length, 'vídeos no cache');
-                        cacheVideos(newTweets, currentUsername);
+                        cacheVideos(newTweets, user.uid);
                     }
 
                     if (newTweets.length === 0) {
                         console.log('⚠️ [VIDEOS] Nenhum vídeo encontrado');
-                        toast({ title: 'Aviso', description: `Nenhum vídeo encontrado para @${currentUsername}` });
+                        toast({ title: 'Aviso', description: `Nenhum vídeo encontrado para @${data.username}` });
                     }
                 } else {
-                    console.log('❌ [VIDEOS] Resposta de erro da API:', data.message);
-                    throw new Error(data.message || 'Falha ao buscar vídeos do Twitter');
+                    console.log('❌ [VIDEOS] Resposta de erro da API:', data.error);
+                    throw new Error(data.error || 'Falha ao buscar vídeos do Twitter');
                 }
             } catch (e: any) {
                 const errorMessage = e.message || 'Erro desconhecido';
@@ -254,25 +248,13 @@ const TwitterVideos = () => {
             }
         };
 
-        if (currentUsername) {
-            fetchTwitterVideos();
-        }
-    }, [toast, currentUsername]);
+        fetchTwitterVideos();
+    }, [toast]);
 
     const loadMore = async () => {
-        if (!currentUsername || !nextToken) return;
-        setIsLoadingMore(true);
-        try {
-            const params = new URLSearchParams({ username: currentUsername, max_results: '50', pagination_token: nextToken });
-            const response = await fetch(`/api/twitter/videos?${params.toString()}`);
-            const data = await response.json();
-            if (data.success) {
-                setTweets(prev => [...prev, ...(data.tweets || [])]);
-                setNextToken(data.next_token);
-            }
-        } finally {
-            setIsLoadingMore(false);
-        }
+        // API híbrida retorna cache limitado - paginação desabilitada temporariamente
+        console.log('⚠️ [VIDEOS] Paginação não disponível na API híbrida');
+        return;
     };
 
     const videos = tweets.flatMap(tweet =>

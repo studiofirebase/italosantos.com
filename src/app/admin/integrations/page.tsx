@@ -134,35 +134,64 @@ export default function AdminIntegrationsPage() {
             || (result as any)?._tokenResponse?.screenName;
           console.log('🔍 [ADMIN] Username extraído:', username);
 
-          // Salvar credenciais do usuário no backend para persistência
-          try {
-            console.log('💾 [ADMIN] Persistindo no backend...');
-            const accessToken = await result.user.getIdToken();
-            const persistResponse = await fetch('/api/admin/twitter/persist', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${accessToken}`
-              },
-              body: JSON.stringify({
-                username: username,
-                uid: result.user.uid,
-                email: result.user.email
-              })
-            });
-            const persistData = await persistResponse.json();
-            console.log('📡 [ADMIN] Resposta persist:', persistData);
-          } catch (persistError) {
-            console.warn('⚠️ [ADMIN] Falha ao persistir dados no backend:', persistError);
+          const accessToken = await result.user.getIdToken();
+
+          // Se não encontrou username, buscar da API do Twitter
+          if (!username) {
+            console.log('⚠️ [ADMIN] Username não encontrado, buscando da API...');
+            try {
+              const response = await fetch('/api/admin/twitter/me', {
+                headers: { Authorization: `Bearer ${accessToken}` }
+              });
+              if (response.ok) {
+                const data = await response.json();
+                username = data.username;
+                console.log('✅ [ADMIN] Username obtido da API:', username);
+              }
+            } catch (fallbackError) {
+              console.warn('⚠️ [ADMIN] Não foi possível buscar username da API:', fallbackError);
+            }
           }
 
           if (username) {
-            console.log('💾 [ADMIN] Salvando username no storage:', username);
+            // Salvar no Firestore
+            try {
+              console.log('💾 [ADMIN] Salvando no Firestore...');
+              const { getFirestore, doc, setDoc } = await import('firebase/firestore');
+              const { app } = await import('@/lib/firebase');
+              const db = getFirestore(app);
+              const twitterAdminRef = doc(db, 'twitter_admins', result.user.uid);
+
+              // Obter o Twitter User ID se disponível
+              let twitterUserId: string | null = null;
+              const twitterData = (result as any).user?.reloadUserInfo?.providerUserInfo?.find(
+                (p: any) => p.providerId === 'twitter.com'
+              );
+              if (twitterData?.rawId) {
+                twitterUserId = twitterData.rawId;
+                console.log('✅ [ADMIN] Twitter User ID encontrado:', twitterUserId);
+              }
+
+              await setDoc(twitterAdminRef, {
+                username: username,
+                displayName: result.user.displayName || null,
+                email: result.user.email || null,
+                photoURL: result.user.photoURL || null,
+                authenticatedAt: new Date().toISOString(),
+                ...(twitterUserId && { twitterUserId })
+              });
+
+              console.log('✅ [ADMIN] Dados salvos no Firestore');
+            } catch (dbError) {
+              console.error('❌ [ADMIN] Erro ao salvar no Firestore:', dbError);
+            }
+
+            // Manter localStorage para compatibilidade (mas o sistema usará o Firebase)
             localStorage.setItem('twitter_username', username);
             sessionStorage.setItem('twitter_username', username);
             localStorage.setItem('twitter_connected', 'true');
             localStorage.setItem('twitter_uid', result.user.uid);
-            console.log('✅ [ADMIN] Dados salvos no localStorage e sessionStorage');
+            console.log('✅ [ADMIN] Dados salvos no localStorage');
 
             setIntegrations(prev => ({ ...prev, twitter: true }));
 
@@ -171,38 +200,12 @@ export default function AdminIntegrationsPage() {
               description: `Conta @${username} conectada com sucesso. Suas fotos e vídeos agora serão carregados dessa conta.`
             });
           } else {
-            console.log('⚠️ [ADMIN] Username não encontrado, tentando fallback...');
-            // Fallback: tentar buscar username via API
-            try {
-              const accessToken = await result.user.getIdToken();
-              const response = await fetch('/api/admin/twitter/me', {
-                headers: { Authorization: `Bearer ${accessToken}` }
-              });
-              if (response.ok) {
-                const data = await response.json();
-                username = data.username || data.screen_name;
-                if (username) {
-                  localStorage.setItem('twitter_username', username);
-                  sessionStorage.setItem('twitter_username', username);
-                  localStorage.setItem('twitter_connected', 'true');
-                  localStorage.setItem('twitter_uid', result.user.uid);
-
-                  setIntegrations(prev => ({ ...prev, twitter: true }));
-
-                  toast({
-                    title: 'Twitter conectado!',
-                    description: `Conta @${username} conectada. Suas fotos e vídeos agora serão carregados dessa conta.`
-                  });
-                }
-              }
-            } catch (fallbackError) {
-              console.warn('Não foi possível buscar username do Twitter:', fallbackError);
-              setIntegrations(prev => ({ ...prev, twitter: true }));
-              toast({
-                title: 'Twitter conectado!',
-                description: 'Conectado com sucesso, mas não foi possível obter o nome de usuário.'
-              });
-            }
+            console.error('❌ [ADMIN] Não foi possível obter username do Twitter');
+            toast({
+              variant: 'destructive',
+              title: 'Erro ao conectar Twitter',
+              description: 'Não foi possível obter o nome de usuário do Twitter.'
+            });
           }
 
           setIsLoading(prev => ({ ...prev, twitter: false }));

@@ -9,7 +9,6 @@ import Link from 'next/link';
 import { auth } from '@/lib/firebase';
 import { GoogleAuthProvider, OAuthProvider, signInWithPopup } from 'firebase/auth';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
-import EmailCollectionModal from '@/components/email-collection-modal';
 
 interface SignUpTypeModalProps {
     isOpen: boolean;
@@ -19,87 +18,18 @@ interface SignUpTypeModalProps {
 export default function SignUpTypeModal({ isOpen, onClose }: SignUpTypeModalProps) {
     const { toast } = useToast();
     const [loading, setLoading] = useState<string | null>(null);
-    const [showEmailCollection, setShowEmailCollection] = useState(false);
-
-    const handleEmailCollected = (email: string) => {
-        console.log('[SignUp] Email coletado:', email);
-        setShowEmailCollection(false);
-        toast({
-            title: 'Email confirmado!',
-            description: 'Agora você tem acesso completo aos recursos de pagamento.'
-        });
-        onClose();
-    };
 
     if (!isOpen) return null;
 
     async function signInWithGoogle() {
         try {
             setLoading('google');
-            const provider = new GoogleAuthProvider();
-            // Solicitar escopos adicionais do Google (OBRIGATÓRIO)
-            provider.addScope('email');
-            provider.addScope('profile');
-            provider.addScope('https://www.googleapis.com/auth/userinfo.profile');
-            provider.addScope('https://www.googleapis.com/auth/userinfo.email');
-
-            // Forçar consentimento para garantir coleta de dados
-            provider.setCustomParameters({
-                prompt: 'consent', // 'consent' força a tela de permissões sempre
-                access_type: 'offline',
-                include_granted_scopes: 'true'
-            });
-
-            const result = await signInWithPopup(auth, provider);
-
-            // Verificar se o email está presente
-            const hasEmail = result.user?.email && result.user.email.trim() !== '';
-            const hasName = result.user?.displayName && result.user.displayName.trim() !== '';
-
-            if (!hasEmail) {
-                console.warn('[SignUp] Email não fornecido pelo Google, solicitando manualmente...');
-                // NÃO fazer logout - permitir que o usuário continue autenticado
-                // Abrir modal para coletar email
-                setShowEmailCollection(true);
-                setLoading(null);
-                return;
-            }
-
-            if (!hasName) {
-                console.warn('[SignUp] Nome não fornecido pelo Google, usando email como fallback');
-            }
-
-            // Salvar dados no localStorage
-            const userEmail = result.user.email!;
-            const userName = result.user.displayName || null;
-
-            try {
-                localStorage.setItem('isAuthenticated', 'true');
-                localStorage.setItem('customerEmail', userEmail);
-                if (userName) {
-                    localStorage.setItem('customerName', userName);
-                }
-            } catch { }
-
-            const displayName = userName || userEmail.split('@')[0] || 'usuário';
-            toast({
-                title: 'Conectado com Google',
-                description: `Bem-vindo, ${displayName}!`
-            });
+            await signInWithPopup(auth, new GoogleAuthProvider());
+            try { localStorage.setItem('isAuthenticated', 'true'); } catch { }
+            toast({ title: 'Conectado com Google' });
             onClose();
         } catch (e: any) {
-            let errorMessage = e?.message || 'Erro desconhecido';
-
-            // Tratamento específico de erros comuns
-            if (e?.code === 'auth/popup-closed-by-user') {
-                errorMessage = 'Você fechou a janela de login';
-            } else if (e?.code === 'auth/popup-blocked') {
-                errorMessage = 'Permita popups no seu navegador para fazer login com Google';
-            } else if (e?.code === 'auth/cancelled-popup-request') {
-                errorMessage = 'Outro login já está em andamento';
-            }
-
-            toast({ variant: 'destructive', title: 'Falha no login com Google', description: errorMessage });
+            toast({ variant: 'destructive', title: 'Falha no login com Google', description: e?.message || 'Erro desconhecido' });
         } finally {
             setLoading(null);
         }
@@ -109,70 +39,13 @@ export default function SignUpTypeModal({ isOpen, onClose }: SignUpTypeModalProp
         try {
             setLoading('apple');
             const provider = new OAuthProvider('apple.com');
-            // Solicitar email e nome (OBRIGATÓRIO)
-            // IMPORTANTE: Apple só fornece nome na PRIMEIRA autenticação!
-            // Se usuário já autenticou antes, nome não virá novamente
-            provider.addScope('email');
-            provider.addScope('name');
-
-            // Forçar coleta de informações
-            provider.setCustomParameters({
-                locale: 'pt_BR',
-                // Não existe 'prompt' para Apple, mas podemos garantir que email é obrigatório
-            });
-
-            const result = await signInWithPopup(auth, provider);
-
-            // Verificar se o email está presente
-            const hasEmail = result.user?.email && result.user.email.trim() !== '';
-            const hasName = result.user?.displayName && result.user.displayName.trim() !== '';
-
-            if (!hasEmail) {
-                console.warn('[SignUp] Email não fornecido pela Apple, solicitando manualmente...');
-                // NÃO fazer logout - permitir que o usuário continue autenticado
-                // Abrir modal para coletar email
-                setShowEmailCollection(true);
-                setLoading(null);
-                return;
-            }
-
-            if (!hasName) {
-                console.warn('[SignUp] Nome não fornecido pela Apple (normal se já autenticou antes)');
-            }
-
-            // Salvar dados no localStorage
-            const userEmail = result.user.email!;
-            const userName = result.user.displayName || null;
-
-            try {
-                localStorage.setItem('isAuthenticated', 'true');
-                localStorage.setItem('customerEmail', userEmail);
-                if (userName) {
-                    localStorage.setItem('customerName', userName);
-                }
-            } catch { }
-
-            const displayName = userName || userEmail.split('@')[0] || 'usuário';
-            toast({
-                title: 'Conectado com Apple',
-                description: `Bem-vindo, ${displayName}!`
-            });
+            // Opcional: provider.addScope('email'); provider.addScope('name');
+            await signInWithPopup(auth, provider);
+            try { localStorage.setItem('isAuthenticated', 'true'); } catch { }
+            toast({ title: 'Conectado com Apple' });
             onClose();
         } catch (e: any) {
-            let errorMessage = e?.message || 'Erro desconhecido';
-
-            // Tratamento específico de erros comuns
-            if (e?.code === 'auth/popup-closed-by-user') {
-                errorMessage = 'Você fechou a janela de login';
-            } else if (e?.code === 'auth/popup-blocked') {
-                errorMessage = 'Permita popups no seu navegador para fazer login com Apple';
-            } else if (e?.code === 'auth/cancelled-popup-request') {
-                errorMessage = 'Outro login já está em andamento';
-            } else if (e?.code === 'auth/unauthorized-domain') {
-                errorMessage = 'Domínio não autorizado. Configure no Firebase Console';
-            }
-
-            toast({ variant: 'destructive', title: 'Falha no login com Apple', description: errorMessage });
+            toast({ variant: 'destructive', title: 'Falha no login com Apple', description: e?.message || 'Erro desconhecido' });
         } finally {
             setLoading(null);
         }
@@ -219,12 +92,6 @@ export default function SignUpTypeModal({ isOpen, onClose }: SignUpTypeModalProp
                     </Card>
                 </div>
             </DialogContent>
-
-            {/* Modal de coleta de email */}
-            <EmailCollectionModal
-                isOpen={showEmailCollection}
-                onEmailCollected={handleEmailCollected}
-            />
         </Dialog>
     );
 }

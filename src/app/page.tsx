@@ -11,7 +11,6 @@ import { useAuth } from '@/contexts/AuthProvider';
 import { useRouter } from 'next/navigation';
 import { useProfileConfig } from '@/hooks/use-profile-config';
 import { useSubscriptionSettings } from '@/hooks/use-subscription-settings';
-import { useProfileSettings } from '@/hooks/use-profile-settings';
 
 // Split below-the-fold sections to reduce initial JS
 const FeatureMarquee = dynamic(() => import('@/components/feature-marquee'), { ssr: false, loading: () => <div style={{ height: 96 }} /> });
@@ -35,29 +34,13 @@ const SignUpTypeModal = dynamic<SignUpTypeModalProps>(
 // Split PayPal widget (heavy SDK)
 const PayPalButton = dynamic(() => import('@/components/paypal-button-enhanced'), { ssr: false, loading: () => <div className="w-full h-full bg-muted rounded" /> });
 
-// Split Adult Warning Dialog
-const AdultWarningDialog = dynamic(() => import('@/components/adult-warning-dialog'), { ssr: false });
-
-function Home() {
-    console.log('🏠 Home component rendering');
-
+export default function Home() {
     const { toast } = useToast();
     const router = useRouter();
-
     const { isAuthenticated, userEmail } = useFaceIDAuth();
-    console.log('✅ useFaceIDAuth loaded');
-
     const { user: firebaseUser, userProfile } = useAuth();
-    console.log('✅ useAuth loaded');
-
     const { coverPhoto, settings: profileSettings, loading: profileLoading } = useProfileConfig();
-    console.log('✅ useProfileConfig loaded');
-
     const { pixValue: adminPixValue, loading: subscriptionLoading, refreshSettings } = useSubscriptionSettings();
-    console.log('✅ useSubscriptionSettings loaded');
-
-    const { showAdultContent } = useProfileSettings();
-    console.log('✅ useProfileSettings loaded - showAdultContent:', showAdultContent);
 
     const [paymentInfo, setPaymentInfo] = useState(() => {
         return {
@@ -101,47 +84,17 @@ function Home() {
     const [isLoginTypeModalOpen, setIsLoginTypeModalOpen] = useState(false);
     const [isSignUpTypeModalOpen, setIsSignUpTypeModalOpen] = useState(false);
     const [isApplePayModalOpen, setIsApplePayModalOpen] = useState(false);
-    const [showAdultWarning, setShowAdultWarning] = useState(false);
 
     const [simulatedMethod, setSimulatedMethod] = useState<'pix' | 'google' | 'apple' | null>(null);
     const [authStatus, setAuthStatus] = useState<'checking' | 'authenticated' | 'unauthenticated'>('checking');
 
-    // CONTROLE DO AVISO DE CONTEÚDO ADULTO
-    useEffect(() => {
-        // Só mostrar se a configuração estiver ativa E o usuário ainda não confirmou
-        if (showAdultContent !== false) {
-            const hasConfirmed = sessionStorage.getItem('adultContentConfirmed') === 'true';
-            if (!hasConfirmed) {
-                setShowAdultWarning(true);
-            }
-        }
-    }, [showAdultContent]);
-
-    const handleAdultWarningConfirm = () => {
-        sessionStorage.setItem('adultContentConfirmed', 'true');
-        setShowAdultWarning(false);
-    };
-
     // VERIFICAÇÃO RIGOROSA DE AUTENTICAÇÃO
     useEffect(() => {
-        // Garantir persistência de flags ao detectar usuário autenticado
-        const ensureAuthFlags = () => {
-            try {
-                if (firebaseUser?.email || userProfile?.email || userEmail) {
-                    localStorage.setItem('isAuthenticated', 'true');
-                    const email = firebaseUser?.email || userProfile?.email || userEmail || '';
-                    if (email && email.trim().length > 3) {
-                        localStorage.setItem('customerEmail', email);
-                    }
-                }
-            } catch (error) {
-                // Ignorar erros de localStorage
-            }
-        };
-
-        ensureAuthFlags();
-
         const checkAuthentication = () => {
+
+
+
+
             // Verificar múltiplas fontes de autenticação
             const localStorage_auth = localStorage.getItem('isAuthenticated') === 'true';
             const sessionStorage_auth = sessionStorage.getItem('isAuthenticated') === 'true';
@@ -159,18 +112,6 @@ function Home() {
             if (isAuthenticatedAnywhere) {
 
                 setAuthStatus('authenticated');
-                // Persistir flags de autenticação se ainda não gravadas
-                try {
-                    if (!localStorage.getItem('isAuthenticated')) {
-                        localStorage.setItem('isAuthenticated', 'true');
-                    }
-                    const resolvedEmail = userEmail || userProfile?.email || firebaseUser?.email || localStorage.getItem('customerEmail');
-                    if (resolvedEmail && resolvedEmail.trim().length > 3) {
-                        localStorage.setItem('customerEmail', resolvedEmail);
-                    }
-                } catch (error) {
-                    // Ignorar erros de localStorage
-                }
                 return;
             }
 
@@ -346,7 +287,6 @@ function Home() {
         }
     };
 
-    console.log('🎯 About to return JSX');
 
     return (
         <>
@@ -373,16 +313,9 @@ function Home() {
                         fontSize: 'clamp(2.6rem, 10.4vw, 10.4rem)',
                         fontFamily: '"Times New Roman", Times, serif',
                         WebkitTextStroke: '1px rgba(0,0,0,0.6)',
-                        // Efeito Neon Branco
-                        textShadow: `
-                            0 0 10px rgba(255, 255, 255, 0.8),
-                            0 0 20px rgba(255, 255, 255, 0.6),
-                            0 0 30px rgba(255, 255, 255, 0.4),
-                            0 0 40px rgba(255, 255, 255, 0.3),
-                            0 0 50px rgba(255, 255, 255, 0.2),
-                            0 0 60px rgba(255, 255, 255, 0.1)
-                        `,
-                        filter: 'drop-shadow(0 0 15px rgba(255, 255, 255, 0.5))',
+                        // Removido container/neon ao redor: deixar apenas o texto
+                        textShadow: 'none',
+                        filter: 'none',
                         minHeight: '4rem'
                     }}
                 >
@@ -468,29 +401,40 @@ function Home() {
                                     <span className="text-lg sm:text-xl md:text-2xl font-normal align-top ml-1">{paymentInfo.symbol}</span>
                                 </p>
                             )}
-                            <div className="w-full min-h-[56px] sm:min-h-[64px] md:min-h-[80px] mt-3 sm:mt-4 mb-4 sm:mb-5 md:mb-6">
+                            <div className="w-full h-14 sm:h-16 md:h-20 mt-3 sm:mt-4">
                                 {authStatus === 'checking' ? (
-                                    <div className="w-full h-14 sm:h-16 md:h-20 bg-muted rounded-lg flex items-center justify-center border border-primary/20">
+                                    <div className="w-full h-full bg-muted rounded-lg flex items-center justify-center border border-primary/20">
                                         <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 animate-spin text-primary" />
                                         <span className="ml-2 text-muted-foreground text-xs sm:text-sm md:text-base">Verificando...</span>
                                     </div>
-                                ) : (
-                                    <div className="w-full">
+                                ) : authStatus === 'authenticated' ? (
+                                    <div className="w-full h-full flex items-center justify-center">
                                         <PayPalButton
                                             onSuccess={handlePaymentSuccess}
                                             amount={parseFloat(paymentInfo.value)}
                                             currency={paymentInfo.currency}
                                             description="Assinatura Mensal Premium"
-                                            productId="subscription_monthly"
-                                            sellerId={firebaseUser?.uid || 'default_seller'}
                                         />
                                     </div>
+                                ) : (
+                                    <button
+                                        className="w-full h-full bg-blue-500 rounded-lg flex items-center justify-center shadow-lg transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                                        onClick={handlePayPalClick}
+                                        aria-label="Pagar com PayPal"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-md flex items-center justify-center">
+                                                <span className="text-blue-500 font-bold text-sm sm:text-base">P</span>
+                                            </div>
+                                            <span className="text-white font-semibold text-sm sm:text-base md:text-lg">Pay with PayPal</span>
+                                        </div>
+                                    </button>
                                 )}
                             </div>
                         </div>
 
                         {/* Selo de Segurança */}
-                        <div className="flex items-center justify-center gap-x-3 sm:gap-x-4 py-3 sm:py-4 md:py-6 px-4 sm:px-6 md:px-8 bg-card border border-primary/30 rounded-lg shadow-neon-white hover:shadow-neon-red-strong transition-all duration-300 mt-2 sm:mt-3">
+                        <div className="flex items-center justify-center gap-x-3 sm:gap-x-4 py-3 sm:py-4 md:py-6 px-4 sm:px-6 md:px-8 bg-card border border-primary/30 rounded-lg shadow-neon-white hover:shadow-neon-red-strong transition-all duration-300">
                             <Image src="/shield.svg" alt="Escudo de segurança" width={64} height={64} className="h-10 w-10 sm:h-12 sm:w-12 md:h-16 md:w-16" />
                             <div className="text-center">
                                 <p className="text-xs sm:text-sm md:text-base font-semibold text-primary">100% Seguro & Protegido</p>
@@ -553,14 +497,9 @@ function Home() {
                 symbol={paymentInfo.symbol}
                 onPaymentSuccess={handlePaymentSuccess}
             />
-            {showAdultContent !== false && (
-                <AdultWarningDialog
-                    isOpen={showAdultWarning}
-                    onConfirm={handleAdultWarningConfirm}
-                />
-            )}
+
+
         </>
     );
-}
 
-export default Home;
+}

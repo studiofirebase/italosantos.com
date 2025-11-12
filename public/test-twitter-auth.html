@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Firebase Auth - Twitter Integration</title>
+    <script type="module">
+        // Import Firebase
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+
+        // Firebase config
+        const firebaseConfig = {
+            apiKey: "AIzaSyAgQVYgZ62v1RIKmcxHQcYjNVcj2Bv0hh8",
+            authDomain: "facepass-afhid.firebaseapp.com",
+            databaseURL: "https://facepass-afhid-default-rtdb.firebaseio.com",
+            projectId: "facepass-afhid",
+            storageBucket: "facepass-afhid.firebasestorage.app",
+            messagingSenderId: "423019559653",
+            appId: "1:423019559653:web:dc278b16cac06e0dfaf20c",
+            measurementId: "G-VBFV45J460"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+
+        // Check auth state
+        onAuthStateChanged(auth, async (user) => {
+            const statusDiv = document.getElementById('status');
+            const detailsDiv = document.getElementById('details');
+            
+            if (user) {
+                console.log('✅ User authenticated:', user);
+                statusDiv.innerHTML = '<h2 style="color: green;">✅ Authenticated!</h2>';
+                
+                // Get token
+                try {
+                    const token = await user.getIdToken();
+                    console.log('Token:', token);
+                    
+                    detailsDiv.innerHTML = `
+                        <h3>User Details:</h3>
+                        <p><strong>UID:</strong> ${user.uid}</p>
+                        <p><strong>Email:</strong> ${user.email || 'N/A'}</p>
+                        <p><strong>Display Name:</strong> ${user.displayName || 'N/A'}</p>
+                        <p><strong>Photo URL:</strong> ${user.photoURL || 'N/A'}</p>
+                        <p><strong>Token (first 50 chars):</strong> ${token.substring(0, 50)}...</p>
+                        
+                        <h3>Test API Calls:</h3>
+                        <button onclick="testMeAPI('${token}')">Test /api/admin/twitter/me</button>
+                        <button onclick="testPhotosAPI('${token}')">Test /api/twitter/fotos</button>
+                        <button onclick="testVideosAPI('${token}')">Test /api/twitter/videos</button>
+                        
+                        <div id="apiResults" style="margin-top: 20px; padding: 10px; background: #f0f0f0; border-radius: 5px;"></div>
+                    `;
+                } catch (error) {
+                    console.error('Error getting token:', error);
+                    detailsDiv.innerHTML = `<p style="color: red;">Error getting token: ${error.message}</p>`;
+                }
+            } else {
+                console.log('❌ No user authenticated');
+                statusDiv.innerHTML = '<h2 style="color: red;">❌ Not Authenticated</h2>';
+                detailsDiv.innerHTML = `
+                    <p>Please go to <a href="/admin/integrations">/admin/integrations</a> and login with Twitter first.</p>
+                `;
+            }
+        });
+
+        // Test API functions
+        window.testMeAPI = async function(token) {
+            const resultsDiv = document.getElementById('apiResults');
+            resultsDiv.innerHTML = '<p>Testing /api/admin/twitter/me...</p>';
+            
+            try {
+                const response = await fetch('/api/admin/twitter/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                resultsDiv.innerHTML = `
+                    <h4>/api/admin/twitter/me Response:</h4>
+                    <p><strong>Status:</strong> ${response.status}</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                console.log('Me API response:', data);
+            } catch (error) {
+                resultsDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                console.error('Error:', error);
+            }
+        };
+
+        window.testPhotosAPI = async function(token) {
+            const resultsDiv = document.getElementById('apiResults');
+            resultsDiv.innerHTML = '<p>Testing /api/twitter/fotos...</p>';
+            
+            try {
+                const response = await fetch('/api/twitter/fotos', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                resultsDiv.innerHTML = `
+                    <h4>/api/twitter/fotos Response:</h4>
+                    <p><strong>Status:</strong> ${response.status}</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                console.log('Photos API response:', data);
+            } catch (error) {
+                resultsDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                console.error('Error:', error);
+            }
+        };
+
+        window.testVideosAPI = async function(token) {
+            const resultsDiv = document.getElementById('apiResults');
+            resultsDiv.innerHTML = '<p>Testing /api/twitter/videos...</p>';
+            
+            try {
+                const response = await fetch('/api/twitter/videos', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+                
+                const data = await response.json();
+                resultsDiv.innerHTML = `
+                    <h4>/api/twitter/videos Response:</h4>
+                    <p><strong>Status:</strong> ${response.status}</p>
+                    <pre>${JSON.stringify(data, null, 2)}</pre>
+                `;
+                console.log('Videos API response:', data);
+            } catch (error) {
+                resultsDiv.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                console.error('Error:', error);
+            }
+        };
+    </script>
+</head>
+<body style="font-family: Arial, sans-serif; padding: 20px; max-width: 800px; margin: 0 auto;">
+    <h1>🧪 Firebase Auth Test - Twitter Integration</h1>
+    
+    <div id="status">
+        <p>Checking authentication status...</p>
+    </div>
+    
+    <div id="details"></div>
+    
+    <hr style="margin: 30px 0;">
+    
+    <h3>Instructions:</h3>
+    <ol>
+        <li>If not authenticated, go to <a href="/admin/integrations">/admin/integrations</a></li>
+        <li>Click "Connect" on Twitter card and login</li>
+        <li>Come back to this page</li>
+        <li>Click the test buttons to verify API calls</li>
+    </ol>
+    
+    <h3>Expected Flow:</h3>
+    <ul>
+        <li>✅ User should be authenticated via Firebase Auth</li>
+        <li>✅ /api/admin/twitter/me should return username</li>
+        <li>✅ /api/twitter/fotos should return photos</li>
+        <li>✅ /api/twitter/videos should return videos</li>
+    </ul>
+</body>
+</html>
