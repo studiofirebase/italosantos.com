@@ -60,6 +60,13 @@ export function openOAuthWindow(platform: SocialPlatform): Window | null {
 
 export async function postLogout(platform: SocialPlatform): Promise<void> {
     try {
+        // Em desenvolvimento local, não fazer chamadas diretas ao Cloud Run (CORS)
+        // A limpeza local já é suficiente para desconectar
+        if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+            console.log(`[DEBUG] Skipping Cloud Run logout for ${platform} in localhost`);
+            return;
+        }
+        
         const endpoint = getEndpoint(platform);
         await fetch(`${endpoint}/logout`, { method: 'POST', credentials: 'include' }).catch(() => { });
     } catch {
