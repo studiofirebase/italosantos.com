@@ -78,7 +78,7 @@ export default function VendaAvulsaPage() {
 
     // Carregar username das configurações
     useEffect(() => {
-        const savedUsername = localStorage.getItem('twitter_username');
+        const savedUsername = localStorage.getItem('twitter_username') || sessionStorage.getItem('twitter_username');
         if (savedUsername) {
             setCurrentUsername(savedUsername);
         }
@@ -89,7 +89,7 @@ export default function VendaAvulsaPage() {
         setError(null);
         try {
             // Usa o username configurado ou o padrão
-            const username = localStorage.getItem('twitter_username') || 'Severepics';
+            const username = localStorage.getItem('twitter_username') || sessionStorage.getItem('twitter_username') || 'Severepics';
             const response = await twitterFlow({ 
                 username, 
                 maxResults: 100, 
@@ -123,10 +123,10 @@ export default function VendaAvulsaPage() {
         fetchFeed();
     }, [toast, currentUsername]); // Recarrega quando o username muda
 
-    // Listener para mudanças no localStorage
+    // Listener para mudanças no localStorage e sessionStorage
     useEffect(() => {
         const handleStorageChange = () => {
-            const newUsername = localStorage.getItem('twitter_username') || 'Severepics';
+            const newUsername = localStorage.getItem('twitter_username') || sessionStorage.getItem('twitter_username') || 'Severepics';
             if (newUsername !== currentUsername) {
                 setCurrentUsername(newUsername);
             }
@@ -136,7 +136,7 @@ export default function VendaAvulsaPage() {
         
         // Também escuta mudanças internas (quando muda na mesma aba)
         const checkUsername = () => {
-            const newUsername = localStorage.getItem('twitter_username') || 'Severepics';
+            const newUsername = localStorage.getItem('twitter_username') || sessionStorage.getItem('twitter_username') || 'Severepics';
             if (newUsername !== currentUsername) {
                 setCurrentUsername(newUsername);
             }

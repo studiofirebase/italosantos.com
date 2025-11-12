@@ -38,7 +38,34 @@ export default function AdminIntegrationsPage() {
     mercadopago: true,
   });
 
-  // (Twitter agora usa signInWithPopup direto; não há mais carregamento de FirebaseUI por CDN aqui)
+  // Verificar autenticação do Twitter ao carregar
+  useEffect(() => {
+    const checkTwitterAuth = async () => {
+      try {
+        const { getAuth } = await import('firebase/auth');
+        const { app } = await import('@/lib/firebase');
+        const auth = getAuth(app);
+
+        // Verificar se há usuário autenticado
+        const unsubscribe = auth.onAuthStateChanged((user) => {
+          if (user) {
+            // Usuário autenticado, verificar se tem username salvo
+            const savedUsername = localStorage.getItem('twitter_username') || sessionStorage.getItem('twitter_username');
+            if (savedUsername) {
+              setIntegrations(prev => ({ ...prev, twitter: true }));
+              localStorage.setItem('twitter_connected', 'true');
+            }
+          }
+        });
+
+        return unsubscribe;
+      } catch (error) {
+        console.warn('Erro ao verificar autenticação do Twitter:', error);
+      }
+    };
+
+    checkTwitterAuth();
+  }, []);
 
   useEffect(() => {
     async function fetchAllStatus() {
@@ -56,6 +83,14 @@ export default function AdminIntegrationsPage() {
           else newIntegrationsState[s] = !!v;
           newLoadingState[s] = false;
         });
+
+        // Para Twitter, também verificar localStorage
+        const twitterConnected = localStorage.getItem('twitter_connected') === 'true';
+        const twitterUsername = localStorage.getItem('twitter_username');
+        if (twitterConnected && twitterUsername) {
+          newIntegrationsState.twitter = true;
+        }
+
         setIntegrations(newIntegrationsState);
         setIsLoading(newLoadingState);
       } catch (e) {
@@ -73,30 +108,98 @@ export default function AdminIntegrationsPage() {
     if (platform === 'twitter') {
       (async () => {
         try {
-          const { getAuth, TwitterAuthProvider, signInWithPopup } = await import('firebase/auth');
+          const { getAuth, TwitterAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence } = await import('firebase/auth');
           const { app } = await import('@/lib/firebase');
           const auth = getAuth(app);
+
+          // Forçar persistência local para que não desconecte ao atualizar
+          await setPersistence(auth, browserLocalPersistence);
+
           const provider = new TwitterAuthProvider();
           const result = await signInWithPopup(auth, provider);
-          setIntegrations(prev => ({ ...prev, twitter: true }));
+
+          // Extrair e salvar username do Twitter
+          let username = (result as any)?.additionalUserInfo?.username
+            || (result as any)?.additionalUserInfo?.profile?.screen_name
+            || (result as any)?._tokenResponse?.screenName;
+
+          // Salvar credenciais do usuário no backend para persistência
           try {
-            const username = (result as any)?.additionalUserInfo?.username
-              || (result as any)?.additionalUserInfo?.profile?.screen_name;
-            if (username) {
-              localStorage.setItem('twitter_username', username);
-              toast({ title: 'Nome de usuário salvo!', description: `O feed de vídeos agora usará @${username}.` });
+            const accessToken = await result.user.getIdToken();
+            await fetch('/api/admin/twitter/persist', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+              },
+              body: JSON.stringify({
+                username: username,
+                uid: result.user.uid,
+                email: result.user.email
+              })
+            });
+          } catch (persistError) {
+            console.warn('Falha ao persistir dados no backend:', persistError);
+          }
+
+          if (username) {
+            localStorage.setItem('twitter_username', username);
+            sessionStorage.setItem('twitter_username', username);
+            localStorage.setItem('twitter_connected', 'true');
+            localStorage.setItem('twitter_uid', result.user.uid);
+
+            setIntegrations(prev => ({ ...prev, twitter: true }));
+
+            toast({
+              title: 'Twitter conectado!',
+              description: `Conta @${username} conectada com sucesso. Suas fotos e vídeos agora serão carregados dessa conta.`
+            });
+          } else {
+            // Fallback: tentar buscar username via API
+            try {
+              const accessToken = await result.user.getIdToken();
+              const response = await fetch('/api/admin/twitter/me', {
+                headers: { Authorization: `Bearer ${accessToken}` }
+              });
+              if (response.ok) {
+                const data = await response.json();
+                username = data.username || data.screen_name;
+                if (username) {
+                  localStorage.setItem('twitter_username', username);
+                  sessionStorage.setItem('twitter_username', username);
+                  localStorage.setItem('twitter_connected', 'true');
+                  localStorage.setItem('twitter_uid', result.user.uid);
+
+                  setIntegrations(prev => ({ ...prev, twitter: true }));
+
+                  toast({
+                    title: 'Twitter conectado!',
+                    description: `Conta @${username} conectada. Suas fotos e vídeos agora serão carregados dessa conta.`
+                  });
+                }
+              }
+            } catch (fallbackError) {
+              console.warn('Não foi possível buscar username do Twitter:', fallbackError);
+              setIntegrations(prev => ({ ...prev, twitter: true }));
+              toast({
+                title: 'Twitter conectado!',
+                description: 'Conectado com sucesso, mas não foi possível obter o nome de usuário.'
+              });
             }
-          } catch { }
+          }
+
           setIsLoading(prev => ({ ...prev, twitter: false }));
         } catch (e: any) {
-          toast({ variant: 'destructive', title: 'Falha ao conectar com Twitter', description: e?.message || 'Popup bloqueado ou configuração inválida.' });
+          toast({
+            variant: 'destructive',
+            title: 'Falha ao conectar com Twitter',
+            description: e?.message || 'Popup bloqueado ou configuração inválida.'
+          });
           setIsLoading(prev => ({ ...prev, twitter: false }));
         }
       })();
       return;
-    }
-
-    // Fluxo padrão (Facebook, Instagram, PayPal, Mercado Pago): abrir janela OAuth no Cloud Run
+    }    // Fluxo padrão (Facebook, Instagram, PayPal, Mercado Pago): abrir janela OAuth no Cloud Run
     const w = openOAuthWindow(platform as any);
     if (!w) {
       toast({ variant: 'destructive', title: 'Popup bloqueado', description: 'Permita popups para conectar sua conta.' });
@@ -110,10 +213,22 @@ export default function AdminIntegrationsPage() {
       if (!data.platform || data.platform !== platform) return;
 
       if (data.success === '1' || data.success === true || data.connected === '1' || data.connected === true) {
-        toast({
-          title: "Conexão realizada com sucesso!",
-          description: `${platform.charAt(0).toUpperCase() + platform.slice(1)} foi conectado à sua conta.`,
-        });
+        // Se vier username nos dados (para qualquer plataforma), salvar
+        // Nota: Twitter usa Firebase Auth e não passará por aqui normalmente,
+        // mas se vier via OAuth2, salvamos o username
+        if (data.username) {
+          localStorage.setItem('twitter_username', data.username);
+          sessionStorage.setItem('twitter_username', data.username);
+          toast({
+            title: "Twitter conectado!",
+            description: `Conta @${data.username} conectada. Suas fotos e vídeos agora serão carregados dessa conta.`,
+          });
+        } else {
+          toast({
+            title: "Conexão realizada com sucesso!",
+            description: `${platform.charAt(0).toUpperCase() + platform.slice(1)} foi conectado à sua conta.`,
+          });
+        }
         setIntegrations(prev => ({ ...prev, [platform]: true, ...(platform === 'instagram' && { facebook: true }) }));
       } else {
         const err = data.error || 'Falha na autenticação.';
@@ -169,6 +284,19 @@ export default function AdminIntegrationsPage() {
 
         if (platform === 'twitter') {
           localStorage.removeItem('twitter_username');
+          sessionStorage.removeItem('twitter_username');
+          localStorage.removeItem('twitter_connected');
+          localStorage.removeItem('twitter_uid');
+          localStorage.removeItem('twitter_media_cache');
+
+          // Deslogar do Firebase Auth também
+          try {
+            const { getAuth, signOut } = await import('firebase/auth');
+            const { app } = await import('@/lib/firebase');
+            const auth = getAuth(app);
+            await signOut(auth);
+          } catch { }
+
           try { await postLogout('twitter'); } catch { }
         }
         if (platform === 'facebook') {
@@ -186,6 +314,30 @@ export default function AdminIntegrationsPage() {
       toast({ variant: 'destructive', title: "Erro no servidor", description: error.message });
     } finally {
       setIsLoading(prev => ({ ...prev, [platform]: false }));
+    }
+  };
+
+  const handleSwitchTwitterAccount = async () => {
+    if (!confirm('Deseja trocar de conta do Twitter? Você será deslogado e poderá conectar outra conta.')) {
+      return;
+    }
+
+    setIsLoading(prev => ({ ...prev, twitter: true }));
+    try {
+      // Desconectar conta atual
+      await handleDisconnect('twitter');
+
+      // Aguardar um pouco e conectar nova conta
+      setTimeout(() => {
+        handleConnect('twitter');
+      }, 500);
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao trocar conta',
+        description: 'Não foi possível trocar de conta. Tente novamente.'
+      });
+      setIsLoading(prev => ({ ...prev, twitter: false }));
     }
   };
 
@@ -272,21 +424,32 @@ export default function AdminIntegrationsPage() {
           </CardContent>
         </Card>
 
-        {integrationData.map((data) => (
-          <IntegrationCard
-            key={data.platform}
-            platform={data.platform}
-            title={data.title}
-            description={data.description}
-            icon={data.icon}
-            isConnected={integrations[data.platform]}
-            isLoading={isLoading[data.platform]}
-            onConnect={() => handleConnect(data.platform as Integration)}
-            onDisconnect={() => handleDisconnect(data.platform as Integration)}
-            onSync={data.onSync}
-            syncing={isLoading[data.platform]}
-          />
-        ))}
+        {integrationData.map((data) => {
+          // Para Twitter, mostrar username quando conectado
+          let description = data.description;
+          if (data.platform === 'twitter' && integrations.twitter) {
+            const twitterUsername = localStorage.getItem('twitter_username');
+            if (twitterUsername) {
+              description = `Conectado como @${twitterUsername}`;
+            }
+          }
+
+          return (
+            <IntegrationCard
+              key={data.platform}
+              platform={data.platform}
+              title={data.title}
+              description={description}
+              icon={data.icon}
+              isConnected={integrations[data.platform]}
+              isLoading={isLoading[data.platform]}
+              onConnect={() => handleConnect(data.platform as Integration)}
+              onDisconnect={() => handleDisconnect(data.platform as Integration)}
+              onSync={data.onSync}
+              syncing={isLoading[data.platform]}
+            />
+          );
+        })}
 
         {/* Cards de cadastro (Auth Demo / Phone / FirebaseUI) removidos: fluxo foi movido para o modal de cadastro do admin */}
       </div>

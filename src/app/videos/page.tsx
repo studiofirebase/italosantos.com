@@ -4,17 +4,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
-import { Loader2, AlertCircle, Video, Twitter, Upload, Play, ExternalLink } from 'lucide-react';
+import { Loader2, AlertCircle, Video, Twitter, Upload, Play, ExternalLink, RefreshCw } from 'lucide-react';
 import { processVideoUrl } from '@/utils/video-url-processor';
 import { Button } from "@/components/ui/button";
 import { useToast } from "../../hooks/use-toast";
+import { getCachedVideos, cacheVideos, getCacheStats } from '@/services/twitter-media-cache';
 import { collection, getDocs, Timestamp, orderBy, query } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 
 // Interfaces
@@ -27,43 +28,43 @@ interface TwitterMedia {
 }
 
 interface TweetWithMedia {
-  id: string;
-  text: string;
-  created_at?: string;
-  media: TwitterMedia[];
-  username: string;
-  profile_image_url?: string;
+    id: string;
+    text: string;
+    created_at?: string;
+    media: TwitterMedia[];
+    username: string;
+    profile_image_url?: string;
 }
 
 interface UploadedVideo {
-  id: string;
-  title: string;
-  videoUrl: string;
-  thumbnailUrl?: string;
-  createdAt: Timestamp;
+    id: string;
+    title: string;
+    videoUrl: string;
+    thumbnailUrl?: string;
+    createdAt: Timestamp;
 }
 
 // Reusable components
 const FeedLoading = ({ message }: { message: string }) => (
-  <div className="flex flex-col items-center justify-center min-h-[400px]">
-    <Loader2 className="h-12 w-12 animate-spin text-primary" />
-    <p className="mt-4 text-muted-foreground">{message}</p>
-  </div>
+    <div className="flex flex-col items-center justify-center min-h-[400px]">
+        <Loader2 className="h-12 w-12 animate-spin text-primary" />
+        <p className="mt-4 text-muted-foreground">{message}</p>
+    </div>
 );
 
 const FeedError = ({ message }: { message: string }) => (
-  <div className="flex flex-col items-center justify-center min-h-[400px] text-destructive bg-destructive/10 rounded-lg p-4">
-    <AlertCircle className="h-12 w-12" />
-    <p className="mt-4 font-semibold">Erro ao carregar</p>
-    <p className="text-sm text-center">{message}</p>
-  </div>
+    <div className="flex flex-col items-center justify-center min-h-[400px] text-destructive bg-destructive/10 rounded-lg p-4">
+        <AlertCircle className="h-12 w-12" />
+        <p className="mt-4 font-semibold">Erro ao carregar</p>
+        <p className="text-sm text-center">{message}</p>
+    </div>
 );
 
 const FeedEmpty = ({ message }: { message: string }) => (
-  <div className="flex flex-col items-center justify-center min-h-[400px] text-muted-foreground">
-    <Video className="h-12 w-12" />
-    <p className="mt-4 text-lg font-semibold text-center">{message}</p>
-  </div>
+    <div className="flex flex-col items-center justify-center min-h-[400px] text-muted-foreground">
+        <Video className="h-12 w-12" />
+        <p className="mt-4 text-lg font-semibold text-center">{message}</p>
+    </div>
 );
 
 const getBestVideoUrl = (media: TwitterMedia) => {
@@ -85,15 +86,15 @@ const TwitterVideoPlayer = ({ media, tweet }: { media: TwitterMedia, tweet: Twee
     const [videoError, setVideoError] = useState(false);
     const videoRef = useRef<HTMLVideoElement>(null);
     const videoUrl = getBestVideoUrl(media);
-    
+
     const openInTwitter = () => {
         if (tweet?.id) window.open(`https://twitter.com/user/status/${tweet.id}`, '_blank');
     };
-    
+
     if (!videoUrl) {
         return null; // Don't render if no video URL
     }
-    
+
     if (videoError) {
         return (
             <div className="group relative aspect-video overflow-hidden rounded-lg border border-primary/20 bg-gray-900 flex flex-col items-center justify-center p-4">
@@ -109,7 +110,7 @@ const TwitterVideoPlayer = ({ media, tweet }: { media: TwitterMedia, tweet: Twee
             </div>
         );
     }
-    
+
     return (
         <div className="relative aspect-video overflow-hidden rounded-lg border border-primary/20 hover:border-primary hover:shadow-neon-red-light transition-all">
             <video
@@ -137,13 +138,28 @@ const TwitterVideos = () => {
     const [currentUsername, setCurrentUsername] = useState<string | null>(null);
     const [nextToken, setNextToken] = useState<string | undefined>(undefined);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const [usingCache, setUsingCache] = useState(false);
 
     useEffect(() => {
-        const savedUsername = localStorage.getItem('twitter_username');
+        const savedUsername = localStorage.getItem('twitter_username') || sessionStorage.getItem('twitter_username');
         setCurrentUsername(savedUsername);
         if (!savedUsername) {
             setIsLoading(false);
             setError('Nenhuma conta do Twitter conectada. Conecte sua conta na página de administração.');
+        } else {
+            // Tentar carregar do cache primeiro
+            const cachedVideos = getCachedVideos(savedUsername);
+            if (cachedVideos && cachedVideos.length > 0) {
+                setTweets(cachedVideos);
+                setUsingCache(true);
+                setIsLoading(false);
+
+                const stats = getCacheStats();
+                toast({
+                    title: '📦 Cache carregado',
+                    description: `${cachedVideos.length} vídeos do cache (${stats?.age || 'idade desconhecida'})`,
+                });
+            }
         }
     }, []);
 
@@ -151,18 +167,29 @@ const TwitterVideos = () => {
         const fetchTwitterVideos = async () => {
             if (!currentUsername) return;
 
-            setIsLoading(true);
+            // Se já temos cache, não mostrar loading (vai atualizar em background)
+            if (!usingCache) {
+                setIsLoading(true);
+            }
             setError(null);
-            
+
             try {
                 const params = new URLSearchParams({ username: currentUsername, max_results: '50' });
                 const response = await fetch(`/api/twitter/videos?${params.toString()}`);
                 const data = await response.json();
 
                 if (data.success) {
-                    setTweets(data.tweets || []);
+                    const newTweets = data.tweets || [];
+                    setTweets(newTweets);
                     setNextToken(data.next_token);
-                    if ((data.tweets || []).length === 0) {
+                    setUsingCache(false);
+
+                    // Salvar no cache (5-10 primeiros)
+                    if (newTweets.length > 0) {
+                        cacheVideos(newTweets, currentUsername);
+                    }
+
+                    if (newTweets.length === 0) {
                         toast({ title: 'Aviso', description: `Nenhum vídeo encontrado para @${currentUsername}` });
                     }
                 } else {
@@ -170,13 +197,22 @@ const TwitterVideos = () => {
                 }
             } catch (e: any) {
                 const errorMessage = e.message || 'Erro desconhecido';
-                setError(`Não foi possível carregar o feed do Twitter. Motivo: ${errorMessage}`);
-                toast({ variant: 'destructive', title: 'Erro ao Carregar Feed', description: errorMessage });
+
+                // Se temos cache, continuar usando ele
+                if (usingCache) {
+                    toast({
+                        title: 'Erro ao atualizar',
+                        description: 'Usando vídeos do cache. ' + errorMessage,
+                    });
+                } else {
+                    setError(`Não foi possível carregar o feed do Twitter. Motivo: ${errorMessage}`);
+                    toast({ variant: 'destructive', title: 'Erro ao Carregar Feed', description: errorMessage });
+                }
             } finally {
                 setIsLoading(false);
             }
         };
-        
+
         if (currentUsername) {
             fetchTwitterVideos();
         }
@@ -198,7 +234,7 @@ const TwitterVideos = () => {
         }
     };
 
-    const videos = tweets.flatMap(tweet => 
+    const videos = tweets.flatMap(tweet =>
         tweet.media.filter(m => (m.type === 'video' || m.type === 'animated_gif'))
     );
 
@@ -278,13 +314,13 @@ const UploadsFeed = () => {
                             <ExternalLink className="h-4 w-4 mr-2" /> Abrir Link
                         </Button>
                         <Button onClick={() => setVideoError(false)} variant="secondary" size="sm" className="w-full">
-                           🔄 Recarregar
+                            🔄 Recarregar
                         </Button>
                     </div>
                 </div>
             );
         }
-        
+
         return <video src={video.videoUrl} poster={video.thumbnailUrl} className="w-full h-full object-cover" controls preload="metadata" onError={() => setVideoError(true)} playsInline controlsList="nodownload" />;
     };
 
@@ -300,36 +336,36 @@ const UploadsFeed = () => {
 }
 
 export default function VideosPage() {
-  return (
-    <main className="flex flex-1 w-full flex-col items-center p-4 bg-background">
-      <Card className="w-full max-w-6xl animate-in fade-in-0 zoom-in-95 duration-500 shadow-neon-red-strong border-primary/50 bg-card/90 backdrop-blur-xl">
-        <CardHeader className="text-center">
-          <CardTitle className="text-3xl text-primary text-shadow-neon-red-light flex items-center justify-center gap-3">
-            <Video /> Galeria de Vídeos
-          </CardTitle>
-          <CardDescription className="text-lg text-muted-foreground">
-            Feeds de vídeos de várias fontes.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="twitter" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="twitter" className="flex items-center gap-2">
-                <Twitter className="h-4 w-4" /> Vídeos do X
-              </TabsTrigger>
-              <TabsTrigger value="uploads" className="flex items-center gap-2">
-                <Upload className="h-4 w-4" /> Uploads
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="twitter" className="mt-6">
-              <TwitterVideos />
-            </TabsContent>
-            <TabsContent value="uploads" className="mt-6">
-              <UploadsFeed />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </main>
-  );
+    return (
+        <main className="flex flex-1 w-full flex-col items-center p-4 bg-background">
+            <Card className="w-full max-w-6xl animate-in fade-in-0 zoom-in-95 duration-500 shadow-neon-red-strong border-primary/50 bg-card/90 backdrop-blur-xl">
+                <CardHeader className="text-center">
+                    <CardTitle className="text-3xl text-primary text-shadow-neon-red-light flex items-center justify-center gap-3">
+                        <Video /> Galeria de Vídeos
+                    </CardTitle>
+                    <CardDescription className="text-lg text-muted-foreground">
+                        Feeds de vídeos de várias fontes.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Tabs defaultValue="twitter" className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="twitter" className="flex items-center gap-2">
+                                <Twitter className="h-4 w-4" /> Vídeos do X
+                            </TabsTrigger>
+                            <TabsTrigger value="uploads" className="flex items-center gap-2">
+                                <Upload className="h-4 w-4" /> Uploads
+                            </TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="twitter" className="mt-6">
+                            <TwitterVideos />
+                        </TabsContent>
+                        <TabsContent value="uploads" className="mt-6">
+                            <UploadsFeed />
+                        </TabsContent>
+                    </Tabs>
+                </CardContent>
+            </Card>
+        </main>
+    );
 }
