@@ -22,6 +22,13 @@ export async function POST(request: NextRequest) {
     
     // Verificar token com Firebase Admin
     const app = getAdminApp();
+    if (!app) {
+      return NextResponse.json(
+        { error: 'Firebase Admin não inicializado' },
+        { status: 500 }
+      );
+    }
+    
     const auth = getAuth(app);
     
     let decodedToken;
@@ -102,6 +109,13 @@ export async function GET(request: NextRequest) {
     
     // Verificar token com Firebase Admin
     const app = getAdminApp();
+    if (!app) {
+      return NextResponse.json(
+        { error: 'Firebase Admin não inicializado' },
+        { status: 500 }
+      );
+    }
+    
     const auth = getAuth(app);
     
     let decodedToken;
