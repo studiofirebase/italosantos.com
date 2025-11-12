@@ -69,11 +69,14 @@ export default function AdminIntegrationsPage() {
 
   useEffect(() => {
     async function fetchAllStatus() {
+      console.log('🔍 [ADMIN] Verificando status de integrações...');
       const services: Integration[] = ['twitter', 'instagram', 'facebook', 'paypal', 'mercadopago'];
       try {
         const res = await fetch(`/api/admin/integrations/status?services=${services.join(',')}`);
+        console.log('📡 [ADMIN] Resposta status:', res.status);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
+        console.log('📦 [ADMIN] Status recebido:', data);
         const status = data.status || {};
         const newIntegrationsState: Record<string, boolean> = { ...integrations };
         const newLoadingState: Record<string, boolean> = { ...isLoading };
@@ -82,19 +85,22 @@ export default function AdminIntegrationsPage() {
           if (typeof v === 'object' && v !== null) newIntegrationsState[s] = !!v.connected;
           else newIntegrationsState[s] = !!v;
           newLoadingState[s] = false;
+          console.log(`🔍 [ADMIN] ${s}:`, newIntegrationsState[s]);
         });
 
         // Para Twitter, também verificar localStorage
         const twitterConnected = localStorage.getItem('twitter_connected') === 'true';
         const twitterUsername = localStorage.getItem('twitter_username');
+        console.log('🔍 [ADMIN] Twitter localStorage:', { twitterConnected, twitterUsername });
         if (twitterConnected && twitterUsername) {
           newIntegrationsState.twitter = true;
+          console.log('✅ [ADMIN] Twitter conectado via localStorage:', twitterUsername);
         }
 
         setIntegrations(newIntegrationsState);
         setIsLoading(newLoadingState);
       } catch (e) {
-        console.error('Status fetch failed', e);
+        console.error('❌ [ADMIN] Status fetch failed:', e);
         const newLoadingState: Record<string, boolean> = { ...isLoading };
         (['twitter', 'instagram', 'facebook', 'paypal', 'mercadopago'] as const).forEach(s => newLoadingState[s] = false);
         setIsLoading(newLoadingState);
@@ -104,29 +110,35 @@ export default function AdminIntegrationsPage() {
   }, []);
 
   const handleConnect = (platform: Integration) => {
+    console.log('🔌 [ADMIN] Conectando:', platform);
     setIsLoading(prev => ({ ...prev, [platform]: true }));
     if (platform === 'twitter') {
       (async () => {
         try {
+          console.log('🐦 [ADMIN] Iniciando login Twitter...');
           const { getAuth, TwitterAuthProvider, signInWithPopup, setPersistence, browserLocalPersistence } = await import('firebase/auth');
           const { app } = await import('@/lib/firebase');
           const auth = getAuth(app);
 
           // Forçar persistência local para que não desconecte ao atualizar
           await setPersistence(auth, browserLocalPersistence);
+          console.log('✅ [ADMIN] Persistência local configurada');
 
           const provider = new TwitterAuthProvider();
           const result = await signInWithPopup(auth, provider);
+          console.log('✅ [ADMIN] Popup concluído, resultado:', result);
 
           // Extrair e salvar username do Twitter
           let username = (result as any)?.additionalUserInfo?.username
             || (result as any)?.additionalUserInfo?.profile?.screen_name
             || (result as any)?._tokenResponse?.screenName;
+          console.log('🔍 [ADMIN] Username extraído:', username);
 
           // Salvar credenciais do usuário no backend para persistência
           try {
+            console.log('💾 [ADMIN] Persistindo no backend...');
             const accessToken = await result.user.getIdToken();
-            await fetch('/api/admin/twitter/persist', {
+            const persistResponse = await fetch('/api/admin/twitter/persist', {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -138,15 +150,19 @@ export default function AdminIntegrationsPage() {
                 email: result.user.email
               })
             });
+            const persistData = await persistResponse.json();
+            console.log('📡 [ADMIN] Resposta persist:', persistData);
           } catch (persistError) {
-            console.warn('Falha ao persistir dados no backend:', persistError);
+            console.warn('⚠️ [ADMIN] Falha ao persistir dados no backend:', persistError);
           }
 
           if (username) {
+            console.log('💾 [ADMIN] Salvando username no storage:', username);
             localStorage.setItem('twitter_username', username);
             sessionStorage.setItem('twitter_username', username);
             localStorage.setItem('twitter_connected', 'true');
             localStorage.setItem('twitter_uid', result.user.uid);
+            console.log('✅ [ADMIN] Dados salvos no localStorage e sessionStorage');
 
             setIntegrations(prev => ({ ...prev, twitter: true }));
 
@@ -155,6 +171,7 @@ export default function AdminIntegrationsPage() {
               description: `Conta @${username} conectada com sucesso. Suas fotos e vídeos agora serão carregados dessa conta.`
             });
           } else {
+            console.log('⚠️ [ADMIN] Username não encontrado, tentando fallback...');
             // Fallback: tentar buscar username via API
             try {
               const accessToken = await result.user.getIdToken();

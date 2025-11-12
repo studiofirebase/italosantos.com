@@ -295,15 +295,24 @@ const TwitterPhotos = () => {
 
     // Carregar username do localStorage ou sessionStorage
     useEffect(() => {
+        console.log('🔍 [FOTOS] Iniciando carregamento de username...');
         const savedUsername = localStorage.getItem('twitter_username') || sessionStorage.getItem('twitter_username');
+        console.log('🔍 [FOTOS] Username encontrado:', savedUsername);
+        console.log('🔍 [FOTOS] localStorage.twitter_username:', localStorage.getItem('twitter_username'));
+        console.log('🔍 [FOTOS] sessionStorage.twitter_username:', sessionStorage.getItem('twitter_username'));
+
         setCurrentUsername(savedUsername);
         if (!savedUsername) {
+            console.log('❌ [FOTOS] Nenhum username encontrado');
             setIsLoading(false);
             setError('Nenhuma conta do Twitter conectada. Conecte sua conta na página de administração.');
         } else {
+            console.log('✅ [FOTOS] Username carregado:', savedUsername);
             // Tentar carregar do cache primeiro
             const cachedPhotos = getCachedPhotos(savedUsername);
+            console.log('🔍 [FOTOS] Fotos do cache:', cachedPhotos?.length || 0);
             if (cachedPhotos && cachedPhotos.length > 0) {
+                console.log('📦 [FOTOS] Usando cache com', cachedPhotos.length, 'fotos');
                 setTweets(cachedPhotos);
                 setUsingCache(true);
                 setIsLoading(false);
@@ -313,47 +322,77 @@ const TwitterPhotos = () => {
                     title: '📦 Cache carregado',
                     description: `${cachedPhotos.length} fotos do cache (${stats?.age || 'idade desconhecida'})`,
                 });
+            } else {
+                console.log('⚠️ [FOTOS] Cache vazio ou inválido, buscando da API');
             }
         }
     }, []);
 
     useEffect(() => {
         const fetchTwitter = async () => {
-            if (!currentUsername) return;
+            if (!currentUsername) {
+                console.log('⚠️ [FOTOS] fetchTwitter abortado: currentUsername vazio');
+                return;
+            }
 
+            console.log('🔄 [FOTOS] Iniciando fetch para:', currentUsername);
             // Se já temos cache, não mostrar loading (vai atualizar em background)
             if (!usingCache) {
+                console.log('⏳ [FOTOS] Mostrando loading...');
                 setIsLoading(true);
+            } else {
+                console.log('📦 [FOTOS] Usando cache, atualizando em background...');
             }
             setError(null);
 
             try {
                 const params = new URLSearchParams({ username: currentUsername, max_results: '50' });
-                const response = await fetch(`/api/twitter/fotos?${params.toString()}`);
+                const apiUrl = `/api/twitter/fotos?${params.toString()}`;
+                console.log('🌐 [FOTOS] Chamando API:', apiUrl);
+                
+                const response = await fetch(apiUrl);
+                console.log('📡 [FOTOS] Resposta HTTP:', response.status, response.statusText);
+                
                 const data = await response.json();
+                console.log('📦 [FOTOS] Dados recebidos:', {
+                    success: data.success,
+                    tweets_count: data.tweets?.length || 0,
+                    has_next_token: !!data.next_token,
+                    error: data.error || data.message
+                });
 
                 if (data.success) {
                     const newTweets = data.tweets || [];
+                    console.log('✅ [FOTOS] Fotos carregadas com sucesso:', newTweets.length);
                     setTweets(newTweets);
                     setNextToken(data.next_token);
                     setUsingCache(false);
 
                     // Salvar no cache (5-10 primeiros)
                     if (newTweets.length > 0) {
+                        console.log('💾 [FOTOS] Salvando', newTweets.length, 'fotos no cache');
                         cachePhotos(newTweets, currentUsername);
                     }
 
                     if (newTweets.length === 0) {
+                        console.log('⚠️ [FOTOS] Nenhuma foto encontrada');
                         toast({
                             title: 'Aviso',
                             description: `Nenhuma foto encontrada para @${currentUsername}`,
                         });
                     }
                 } else {
+                    console.log('❌ [FOTOS] Resposta de erro da API:', data.message);
                     throw new Error(data.message || 'Falha ao buscar fotos do Twitter');
                 }
             } catch (e: any) {
                 const errorMessage = e.message || "Ocorreu um erro desconhecido.";
+                console.error('❌ [FOTOS] Erro ao buscar fotos:', e);
+                console.log('❌ [FOTOS] Detalhes do erro:', {
+                    message: errorMessage,
+                    name: e.name,
+                    stack: e.stack
+                });
 
                 // Se temos cache, continuar usando ele
                 if (usingCache) {

@@ -141,15 +141,24 @@ const TwitterVideos = () => {
     const [usingCache, setUsingCache] = useState(false);
 
     useEffect(() => {
+        console.log('🔍 [VIDEOS] Iniciando carregamento de username...');
         const savedUsername = localStorage.getItem('twitter_username') || sessionStorage.getItem('twitter_username');
+        console.log('🔍 [VIDEOS] Username encontrado:', savedUsername);
+        console.log('🔍 [VIDEOS] localStorage.twitter_username:', localStorage.getItem('twitter_username'));
+        console.log('🔍 [VIDEOS] sessionStorage.twitter_username:', sessionStorage.getItem('twitter_username'));
+        
         setCurrentUsername(savedUsername);
         if (!savedUsername) {
+            console.log('❌ [VIDEOS] Nenhum username encontrado');
             setIsLoading(false);
             setError('Nenhuma conta do Twitter conectada. Conecte sua conta na página de administração.');
         } else {
+            console.log('✅ [VIDEOS] Username carregado:', savedUsername);
             // Tentar carregar do cache primeiro
             const cachedVideos = getCachedVideos(savedUsername);
+            console.log('🔍 [VIDEOS] Vídeos do cache:', cachedVideos?.length || 0);
             if (cachedVideos && cachedVideos.length > 0) {
+                console.log('📦 [VIDEOS] Usando cache com', cachedVideos.length, 'vídeos');
                 setTweets(cachedVideos);
                 setUsingCache(true);
                 setIsLoading(false);
@@ -159,52 +168,84 @@ const TwitterVideos = () => {
                     title: '📦 Cache carregado',
                     description: `${cachedVideos.length} vídeos do cache (${stats?.age || 'idade desconhecida'})`,
                 });
+            } else {
+                console.log('⚠️ [VIDEOS] Cache vazio ou inválido, buscando da API');
             }
         }
     }, []);
 
     useEffect(() => {
         const fetchTwitterVideos = async () => {
-            if (!currentUsername) return;
+            if (!currentUsername) {
+                console.log('⚠️ [VIDEOS] fetchTwitterVideos abortado: currentUsername vazio');
+                return;
+            }
 
+            console.log('🔄 [VIDEOS] Iniciando fetch para:', currentUsername);
             // Se já temos cache, não mostrar loading (vai atualizar em background)
             if (!usingCache) {
+                console.log('⏳ [VIDEOS] Mostrando loading...');
                 setIsLoading(true);
+            } else {
+                console.log('📦 [VIDEOS] Usando cache, atualizando em background...');
             }
             setError(null);
 
             try {
                 const params = new URLSearchParams({ username: currentUsername, max_results: '50' });
-                const response = await fetch(`/api/twitter/videos?${params.toString()}`);
+                const apiUrl = `/api/twitter/videos?${params.toString()}`;
+                console.log('🌐 [VIDEOS] Chamando API:', apiUrl);
+                
+                const response = await fetch(apiUrl);
+                console.log('📡 [VIDEOS] Resposta HTTP:', response.status, response.statusText);
+                
                 const data = await response.json();
+                console.log('📦 [VIDEOS] Dados recebidos:', {
+                    success: data.success,
+                    tweets_count: data.tweets?.length || 0,
+                    has_next_token: !!data.next_token,
+                    error: data.error || data.message
+                });
 
                 if (data.success) {
                     const newTweets = data.tweets || [];
+                    console.log('✅ [VIDEOS] Vídeos carregados com sucesso:', newTweets.length);
                     setTweets(newTweets);
                     setNextToken(data.next_token);
                     setUsingCache(false);
 
                     // Salvar no cache (5-10 primeiros)
                     if (newTweets.length > 0) {
+                        console.log('💾 [VIDEOS] Salvando', newTweets.length, 'vídeos no cache');
                         cacheVideos(newTweets, currentUsername);
                     }
 
                     if (newTweets.length === 0) {
+                        console.log('⚠️ [VIDEOS] Nenhum vídeo encontrado');
                         toast({ title: 'Aviso', description: `Nenhum vídeo encontrado para @${currentUsername}` });
                     }
                 } else {
+                    console.log('❌ [VIDEOS] Resposta de erro da API:', data.message);
                     throw new Error(data.message || 'Falha ao buscar vídeos do Twitter');
                 }
             } catch (e: any) {
                 const errorMessage = e.message || 'Erro desconhecido';
+                console.error('❌ [VIDEOS] Erro ao buscar vídeos:', e);
+                console.log('❌ [VIDEOS] Detalhes do erro:', {
+                    message: errorMessage,
+                    name: e.name,
+                    stack: e.stack
+                });
 
                 // Se temos cache, continuar usando ele
                 if (usingCache) {
+                    console.log('📦 [VIDEOS] Mantendo cache após erro');
                     toast({
                         title: 'Erro ao atualizar',
                         description: 'Usando vídeos do cache. ' + errorMessage,
                     });
                 } else {
+                    console.log('❌ [VIDEOS] Exibindo erro (sem cache disponível)');
                     setError(`Não foi possível carregar o feed do Twitter. Motivo: ${errorMessage}`);
                     toast({ variant: 'destructive', title: 'Erro ao Carregar Feed', description: errorMessage });
                 }
