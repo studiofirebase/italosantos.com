@@ -27,10 +27,8 @@ export const GOOGLE_PAY_CONFIG = {
     tokenizationSpecification: {
       type: 'PAYMENT_GATEWAY',
       parameters: {
-        gateway: process.env.NEXT_PUBLIC_GOOGLE_PAY_ENVIRONMENT === 'TEST' ? 'example' : 'stripe',
-        gatewayMerchantId: process.env.NEXT_PUBLIC_GOOGLE_PAY_ENVIRONMENT === 'TEST'
-          ? '01234567890123456789' // ID de teste
-          : (process.env.NEXT_PUBLIC_GOOGLE_PAY_MERCHANT_ID || 'BCR2DN4T6OKKN3DX'), // ID real
+        gateway: 'braintree',
+        'braintree:merchantId': process.env.NEXT_PUBLIC_BRAINTREE_MERCHANT_ID || '75tzy2qyrkv9hfwj',
       },
     },
   },

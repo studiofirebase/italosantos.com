@@ -4,7 +4,7 @@ import { subscriptionManager } from '@/lib/subscription-manager';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     console.log('🔔 [GOOGLE PAY] Processando pagamento:', {
       amount: body.amount,
       currency: body.currency,
@@ -31,21 +31,22 @@ export async function POST(request: NextRequest) {
       }, { status: 401 });
     }
 
-    // Processar token do Google Pay
-    const paymentToken = body.paymentData?.paymentMethodData?.tokenizationData?.token;
-    
-    if (!paymentToken) {
+    // Processar token/nonce do Google Pay via Braintree
+    const paymentMethodNonce = body.paymentMethodNonce || body.paymentData?.paymentMethodData?.tokenizationData?.token;
+
+    if (!paymentMethodNonce) {
       return NextResponse.json({
         success: false,
-        error: 'Token de pagamento não recebido do Google Pay'
+        error: 'Payment method nonce não recebido do Google Pay'
       }, { status: 400 });
     }
-    
-    console.log('🔐 [GOOGLE PAY] Token recebido (primeiros 50 chars):', paymentToken.substring(0, 50));
-    
-    // Gerar ID da transação único
-    const transactionId = `google_pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    
+
+    console.log('🔐 [GOOGLE PAY] Nonce recebido (primeiros 20 chars):', paymentMethodNonce.substring(0, 20));
+
+    // Import Braintree gateway
+    const { getBraintreeGateway } = await import('@/lib/braintree-gateway');
+    const gateway = getBraintreeGateway();
+
     // Validar valor do pagamento (deve ser pelo menos 99.00 para assinatura)
     const paymentAmount = parseFloat(body.amount);
     if (paymentAmount < 99.00) {
@@ -55,11 +56,11 @@ export async function POST(request: NextRequest) {
         error: 'Valor insuficiente para ativar a assinatura. Valor mínimo: R$ 99,00'
       }, { status: 400 });
     }
-    
+
     // Verificar se já existe uma assinatura para este usuário
     try {
       const hasActive = await subscriptionManager.hasActiveSubscription(body.userEmail);
-      
+
       if (hasActive) {
         console.log('⚠️ [GOOGLE PAY] Usuário já possui assinatura ativa válida');
         return NextResponse.json({
@@ -73,13 +74,39 @@ export async function POST(request: NextRequest) {
       console.warn('⚠️ [GOOGLE PAY] Erro ao verificar assinaturas existentes:', error);
       // Continuar com a criação da nova assinatura
     }
+
+    // Processar transação com Braintree
+    console.log('💳 [GOOGLE PAY] Processando transação com Braintree...');
     
-    // Criar assinatura usando a mesma lógica do PIX
+    const braintreeResult = await gateway.transaction.sale({
+      amount: paymentAmount.toFixed(2),
+      paymentMethodNonce: paymentMethodNonce,
+      options: {
+        submitForSettlement: true,
+      },
+      customer: {
+        email: body.userEmail,
+      },
+    });
+
+    if (!braintreeResult.success) {
+      console.error('❌ [GOOGLE PAY] Braintree rejeitou a transação:', braintreeResult.message);
+      return NextResponse.json({
+        success: false,
+        error: 'Pagamento rejeitado pelo processador',
+        message: braintreeResult.message || 'Transação negada',
+      }, { status: 400 });
+    }
+
+    const transaction = braintreeResult.transaction;
+    console.log('✅ [GOOGLE PAY] Transação aprovada no Braintree:', transaction.id);
+
+    // Criar assinatura com ID da transação Braintree
     const subscriptionData = {
       userId: `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
       email: body.userEmail,
       planId: 'monthly',
-      paymentId: transactionId,
+      paymentId: transaction.id, // ID da transação Braintree
       amount: paymentAmount,
       paymentMethod: 'google_pay' as const,
     };
@@ -98,20 +125,22 @@ export async function POST(request: NextRequest) {
     // Retornar resposta de sucesso
     return NextResponse.json({
       success: true,
-      message: 'Pagamento Google Pay processado com sucesso! Sua assinatura foi ativada.',
-      transactionId: transactionId,
+      message: 'Pagamento Google Pay processado com sucesso via Braintree! Sua assinatura foi ativada.',
+      transactionId: transaction.id,
+      braintreeTransactionId: transaction.id,
       subscriptionId: subscriptionId,
       amount: paymentAmount,
       status: 'approved',
       planId: 'monthly',
-      paymentMethod: 'google_pay'
+      paymentMethod: 'google_pay',
+      processor: 'braintree'
     });
 
   } catch (error) {
     console.error('❌ [GOOGLE PAY] Erro ao processar pagamento:', error);
-    
+
     let errorMessage = 'Erro ao processar pagamento Google Pay';
-    
+
     if (error instanceof Error) {
       if (error.message.includes('subscription')) {
         errorMessage = 'Erro ao criar assinatura. Tente novamente.';
@@ -121,7 +150,7 @@ export async function POST(request: NextRequest) {
         errorMessage = error.message;
       }
     }
-    
+
     return NextResponse.json({
       success: false,
       error: errorMessage,

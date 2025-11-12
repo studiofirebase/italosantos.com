@@ -52,19 +52,15 @@ export default function SignUpTypeModal({ isOpen, onClose }: SignUpTypeModalProp
 
             const result = await signInWithPopup(auth, provider);
 
-            // Verificar se o email E nome estão presentes
+            // Verificar se o email está presente
             const hasEmail = result.user?.email && result.user.email.trim() !== '';
             const hasName = result.user?.displayName && result.user.displayName.trim() !== '';
 
             if (!hasEmail) {
-                console.error('[SignUp] Email não fornecido pelo Google!');
-                // Fazer logout e forçar nova autenticação
-                await auth.signOut();
-                toast({
-                    variant: 'destructive',
-                    title: 'Email obrigatório',
-                    description: 'É necessário fornecer seu email para continuar. Tente novamente e permita o acesso ao email.'
-                });
+                console.warn('[SignUp] Email não fornecido pelo Google, solicitando manualmente...');
+                // NÃO fazer logout - permitir que o usuário continue autenticado
+                // Abrir modal para coletar email
+                setShowEmailCollection(true);
                 setLoading(null);
                 return;
             }
@@ -74,8 +70,7 @@ export default function SignUpTypeModal({ isOpen, onClose }: SignUpTypeModalProp
             }
 
             // Salvar dados no localStorage
-            // Neste ponto, email já foi validado (hasEmail = true)
-            const userEmail = result.user.email!; // Non-null assertion pois foi validado acima
+            const userEmail = result.user.email!;
             const userName = result.user.displayName || null;
 
             try {
@@ -128,19 +123,15 @@ export default function SignUpTypeModal({ isOpen, onClose }: SignUpTypeModalProp
 
             const result = await signInWithPopup(auth, provider);
 
-            // Verificar se o email E nome estão presentes
+            // Verificar se o email está presente
             const hasEmail = result.user?.email && result.user.email.trim() !== '';
             const hasName = result.user?.displayName && result.user.displayName.trim() !== '';
 
             if (!hasEmail) {
-                console.error('[SignUp] Email não fornecido pela Apple!');
-                // Fazer logout e forçar nova autenticação
-                await auth.signOut();
-                toast({
-                    variant: 'destructive',
-                    title: 'Email obrigatório',
-                    description: 'É necessário fornecer seu email para continuar. Tente novamente e permita o acesso ao email.'
-                });
+                console.warn('[SignUp] Email não fornecido pela Apple, solicitando manualmente...');
+                // NÃO fazer logout - permitir que o usuário continue autenticado
+                // Abrir modal para coletar email
+                setShowEmailCollection(true);
                 setLoading(null);
                 return;
             }
@@ -150,8 +141,7 @@ export default function SignUpTypeModal({ isOpen, onClose }: SignUpTypeModalProp
             }
 
             // Salvar dados no localStorage
-            // Neste ponto, email já foi validado (hasEmail = true)
-            const userEmail = result.user.email!; // Non-null assertion pois foi validado acima
+            const userEmail = result.user.email!;
             const userName = result.user.displayName || null;
 
             try {
