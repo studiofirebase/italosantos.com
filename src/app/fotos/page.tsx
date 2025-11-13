@@ -443,10 +443,38 @@ const TwitterPhotos = () => {
                     <span className="text-sm text-muted-foreground">({photos.length} fotos)</span>
                 </div>
                 <button
-                    onClick={() => window.location.reload()}
-                    className="text-sm text-primary hover:underline"
+                    onClick={async () => {
+                        setIsLoading(true);
+                        try {
+                            const accessToken = localStorage.getItem('firebase_token');
+                            const response = await fetch('/api/twitter/fotos?force=true', {
+                                headers: {
+                                    'Authorization': `Bearer ${accessToken}`,
+                                },
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                                setTweets(data.tweets || []);
+                                toast({
+                                    title: '✅ Atualizado',
+                                    description: `${data.tweets?.length || 0} fotos recarregadas da API`,
+                                });
+                            }
+                        } catch (error) {
+                            toast({
+                                variant: 'destructive',
+                                title: 'Erro ao atualizar',
+                                description: 'Não foi possível forçar atualização',
+                            });
+                        } finally {
+                            setIsLoading(false);
+                        }
+                    }}
+                    className="flex items-center gap-2 text-sm text-primary hover:underline"
+                    disabled={isLoading}
                 >
-                    Atualizar
+                    <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
+                    {isLoading ? 'Atualizando...' : 'Forçar Atualização'}
                 </button>
             </div>
 

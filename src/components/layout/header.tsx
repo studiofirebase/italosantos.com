@@ -6,6 +6,7 @@ import { Menu, Search } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter, usePathname } from 'next/navigation';
 import UserNav from '@/components/user-nav';
+import GoogleTranslate from '@/components/common/GoogleTranslate';
 
 const Header = ({ onMenuClick }: { onMenuClick: () => void }) => {
   const router = useRouter();
@@ -35,6 +36,7 @@ const Header = ({ onMenuClick }: { onMenuClick: () => void }) => {
           {/* O botão foi movido para o layout principal para ficar fixo no topo */}
         </div>
         <div className="flex items-center space-x-2">
+          <GoogleTranslate />
           <UserNav />
         </div>
       </div>

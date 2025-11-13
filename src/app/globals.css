@@ -737,4 +737,44 @@
   .shadow-neon-red-light:hover {
     box-shadow: 0 0 12px rgba(255, 255, 255, 1), 0 0 24px rgba(255, 255, 255, 0.8), 0 0 36px rgba(255, 255, 255, 0.5);
   }
+
+  /* Google Translate customization - hide unwanted elements */
+  .goog-te-banner-frame.skiptranslate {
+    display: none !important;
+  }
+  
+  body {
+    top: 0 !important;
+  }
+  
+  .goog-te-gadget {
+    color: transparent !important;
+  }
+  
+  .goog-te-gadget .goog-te-combo {
+    color: #fff !important;
+  }
+  
+  #google_translate_element {
+    display: none !important;
+  }
+  
+  /* Remove Google Translate toolbar */
+  .goog-te-banner-frame {
+    display: none !important;
+  }
+  
+  .goog-te-menu-value span {
+    border: none !important;
+  }
+  
+  iframe.goog-te-menu-frame {
+    max-height: 400px !important;
+    overflow-y: auto !important;
+  }
+  
+  /* Fix page jumping when translate loads */
+  body.translated-ltr {
+    top: 0 !important;
+  }
 }

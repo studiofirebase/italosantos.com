@@ -274,7 +274,41 @@ const TwitterVideos = () => {
                     <span className="font-medium">Conta: @{currentUsername}</span>
                     <span className="text-sm text-muted-foreground">({videos.length} vídeos)</span>
                 </div>
-                <Button onClick={() => window.location.reload()} variant="outline" size="sm">Atualizar</Button>
+                <Button
+                    onClick={async () => {
+                        setIsLoading(true);
+                        try {
+                            const accessToken = localStorage.getItem('firebase_token');
+                            const response = await fetch('/api/twitter/videos?force=true', {
+                                headers: {
+                                    'Authorization': `Bearer ${accessToken}`,
+                                },
+                            });
+                            const data = await response.json();
+                            if (data.success) {
+                                setTweets(data.tweets || []);
+                                toast({
+                                    title: '✅ Atualizado',
+                                    description: `${data.tweets?.length || 0} vídeos recarregados da API`,
+                                });
+                            }
+                        } catch (error) {
+                            toast({
+                                variant: 'destructive',
+                                title: 'Erro ao atualizar',
+                                description: 'Não foi possível forçar atualização',
+                            });
+                        } finally {
+                            setIsLoading(false);
+                        }
+                    }}
+                    variant="outline"
+                    size="sm"
+                    disabled={isLoading}
+                >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
+                    {isLoading ? 'Atualizando...' : 'Forçar Atualização'}
+                </Button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                 {videos.map((media) => {

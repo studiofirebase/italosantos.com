@@ -21,7 +21,7 @@ O QUE FOI IMPLEMENTADO:
    - Arquivo: src/services/instagram-sdk-integration.ts
    - 11 métodos para gerenciar Instagram
    - Novos escopos: instagram_business_*
-   - Integração com Facebook SDK v18.0
+   - Integração com Facebook SDK v23.0
 
 ✅ 3. HOOK REACT
    - Arquivo: src/hooks/useInstagramIntegration.ts

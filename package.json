@@ -38,7 +38,9 @@
     "restart-dev": "node scripts/restart-dev.js",
     "test-firebase": "node scripts/test-firebase-connection.js",
     "test-face-auth": "node scripts/test-face-auth.js",
-    "test-user-auth": "node scripts/test-user-auth.js"
+    "test-user-auth": "node scripts/test-user-auth.js",
+    "refresh-twitter-cache": "node refresh-twitter-cache.js",
+    "twitter-cache": "node refresh-twitter-cache.js"
   },
   "engines": {
     "node": "20"

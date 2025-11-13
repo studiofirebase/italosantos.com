@@ -87,8 +87,8 @@ const nextConfig = {
           {
             key: 'Content-Security-Policy',
             value: process.env.NODE_ENV === 'development'
-              ? "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https: http:; media-src 'self' blob: https: http:; connect-src 'self' https: http: ws: wss:; frame-src 'self' https: http:; font-src 'self' https: data:;"
-              : "default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https:; style-src 'self' 'unsafe-inline' https:; img-src 'self' data: blob: https: http:; media-src 'self' blob: https: http:; connect-src 'self' https: http: ws: wss:; frame-src 'self' https: http:; font-src 'self' https: data:;"
+              ? "default-src 'self'; object-src 'self' data:; script-src 'self' 'unsafe-eval' 'unsafe-inline' https: https://translate.google.com https://translate.googleapis.com; style-src 'self' 'unsafe-inline' https: https://translate.googleapis.com; img-src 'self' data: blob: https: http: https://translate.google.com https://www.gstatic.com; media-src 'self' blob: https: http:; connect-src 'self' https: http: ws: wss: https://translate.googleapis.com; frame-src 'self' https: http: https://translate.google.com https://translate.googleapis.com; font-src 'self' https: data: https://fonts.gstatic.com;"
+              : "default-src 'self'; object-src 'self' data:; script-src 'self' 'unsafe-eval' 'unsafe-inline' https: https://translate.google.com https://translate.googleapis.com; style-src 'self' 'unsafe-inline' https: https://translate.googleapis.com; img-src 'self' data: blob: https: http: https://translate.google.com https://www.gstatic.com; media-src 'self' blob: https: http:; connect-src 'self' https: http: ws: wss: https://translate.googleapis.com; frame-src 'self' https: http: https://translate.google.com https://translate.googleapis.com; font-src 'self' https: data: https://fonts.gstatic.com;"
           },
           {
             key: 'Permissions-Policy',

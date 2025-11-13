@@ -91,6 +91,23 @@ export default function RootLayout({
               })(window,document,'script','dataLayer','GTM-XXXXXXX');
             `}
         </Script>
+
+        {/* Google Translate Script */}
+        <Script id="google-translate-init" strategy="afterInteractive">
+          {`
+            function googleTranslateElementInit() {
+              if (window.google && window.google.translate) {
+                new google.translate.TranslateElement({
+                  pageLanguage: 'pt',
+                  includedLanguages: 'pt,en,es,fr,de,it,ja,ko,zh-CN,ru,ar',
+                  layout: google.translate.TranslateElement.InlineLayout.SIMPLE,
+                  autoDisplay: false
+                }, 'google_translate_element');
+              }
+            }
+          `}
+        </Script>
+
         <noscript>
           <iframe
             src="https://www.googletagmanager.com/ns.html?id=GTM-XXXXXXX"
@@ -114,11 +131,11 @@ export default function RootLayout({
                 appId      : '${process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '1029313609296207'}',
                 cookie     : true,
                 xfbml      : true,
-                version    : 'v18.0'
+                version    : 'v23.0'
               });
               
               FB.AppEvents.logPageView();
-              console.log('[Layout] Facebook SDK inicializado com sucesso');
+              console.log('[Layout] Facebook SDK inicializado com sucesso (v23.0)');
             };
 
             (function(d, s, id){
