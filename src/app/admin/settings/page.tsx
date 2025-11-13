@@ -1536,10 +1536,9 @@ export default function AdminSettingsPage() {
                                         variant="outline"
                                         onClick={async () => {
                                             try {
-                                                const { getAuth } = await import('firebase/auth');
                                                 const { auth } = await import('@/lib/firebase');
-                                                const user = getAuth(auth).currentUser;
-                                                
+                                                const user = auth.currentUser;
+
                                                 if (!user) {
                                                     toast({
                                                         variant: 'destructive',
