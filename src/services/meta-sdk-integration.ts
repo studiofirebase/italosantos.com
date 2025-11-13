@@ -426,7 +426,7 @@ class MetaSDKIntegration {
     getInstagramAuthUrl(state?: string): string {
         // Formato exato: force_reauth PRIMEIRO, depois client_id, redirect_uri, response_type, scope
         const scopeString = this.instagramScopes.join(',');
-        
+
         let authUrl = `https://www.instagram.com/oauth/authorize?force_reauth=true&client_id=${this.instagramAppId}&redirect_uri=${encodeURIComponent(this.instagramRedirectUri)}&response_type=code&scope=${scopeString}`;
 
         if (state) {

@@ -6,6 +6,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useSearchParams } from "next/navigation";
 import IntegrationCard from "./components/IntegrationCard";
 import PayPalLoginButton from "@/components/auth/PayPalLoginButton";
+import { MercadoPagoAuthButton } from "@/components/MercadoPagoAuthButton";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 
 // Importar os ícones
@@ -115,7 +116,7 @@ export default function AdminIntegrationsPage() {
 
       // Primeiro fazer login com Facebook SDK
       await metaSDK.initialize();
-      
+
       console.log('[Instagram] Verificando status de login do Facebook...');
       const loginStatus = await metaSDK.getLoginStatus();
 
@@ -126,7 +127,7 @@ export default function AdminIntegrationsPage() {
         accessToken = loginStatus.authResponse.accessToken;
       } else {
         console.log('[Instagram] Não está logado, abrindo popup de login do Facebook...');
-        
+
         // Fazer login via Facebook SDK com scopes necessários
         const facebookProfile = await metaSDK.loginWithFacebook();
         console.log('[Instagram] Login do Facebook concluído:', facebookProfile);
@@ -720,6 +721,57 @@ export default function AdminIntegrationsPage() {
               isLoading={isLoading.paypal}
               onConnect={() => handleConnect('paypal' as any)}
               onDisconnect={() => handleDisconnect('paypal' as any)}
+            />
+          </CardContent>
+        </Card>
+
+        {/* Card do Mercado Pago com OAuth completo */}
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <div className="flex items-center space-x-4">
+              <div className="w-16 h-16 flex items-center justify-center rounded-lg">
+                <MercadoPagoIcon />
+              </div>
+              <div>
+                <CardTitle>Mercado Pago</CardTitle>
+                <CardDescription>Conecte sua conta para receber pagamentos via PIX.</CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="flex flex-col space-y-2">
+            <MercadoPagoAuthButton
+              mode="authorization_code"
+              usePKCE={true}
+              onSuccess={(data) => {
+                console.log('[MercadoPago] Conectado com sucesso:', data);
+                setIntegrations(prev => ({ ...prev, mercadopago: true }));
+
+                // Salvar dados no banco
+                fetch('/api/admin/integrations/save', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    platform: 'mercadopago',
+                    data: {
+                      connected: true,
+                      access_token: data.accessToken,
+                      refresh_token: data.refreshToken,
+                      public_key: data.publicKey,
+                      user_id: data.userId,
+                      user: data.user,
+                      connected_at: new Date().toISOString(),
+                    }
+                  })
+                }).catch(err => console.error('Erro ao salvar integração:', err));
+              }}
+              onError={(error) => {
+                console.error('[MercadoPago] Erro:', error);
+                toast({
+                  variant: 'destructive',
+                  title: 'Erro ao conectar Mercado Pago',
+                  description: 'Não foi possível completar a autenticação.',
+                });
+              }}
             />
           </CardContent>
         </Card>

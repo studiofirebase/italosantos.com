@@ -96,14 +96,19 @@ export class MercadoPagoClient {
         throw new Error('QR Code não encontrado na resposta do Mercado Pago');
       }
 
+      // Calcular data de expiração (padrão: 30 minutos)
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+
       return {
         id: response.id,
         qrCode: pixData.qr_code,
         qrCodeBase64: pixData.qr_code_base64,
+        pixCopiaECola: pixData.qr_code, // O qr_code é o código "copia e cola"
         status: response.status,
         amount: response.transaction_amount,
         description: response.description,
-        payer: response.payer
+        payer: response.payer,
+        expiresAt
       };
 
     } catch (error: any) {
