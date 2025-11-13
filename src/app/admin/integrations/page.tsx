@@ -304,11 +304,38 @@ export default function AdminIntegrationsPage() {
         toast({ title: "Desconectado com sucesso", description: result.message });
 
         if (platform === 'twitter') {
+          const username = localStorage.getItem('twitter_username');
+
           localStorage.removeItem('twitter_username');
           sessionStorage.removeItem('twitter_username');
           localStorage.removeItem('twitter_connected');
           localStorage.removeItem('twitter_uid');
           localStorage.removeItem('twitter_media_cache');
+
+          // Limpar cache do Firestore
+          if (username) {
+            try {
+              const { getAuth } = await import('firebase/auth');
+              const { app } = await import('@/lib/firebase');
+              const auth = getAuth(app);
+              const user = auth.currentUser;
+
+              if (user) {
+                const accessToken = await user.getIdToken();
+                await fetch('/api/admin/twitter/clear-cache', {
+                  method: 'POST',
+                  headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({ username })
+                });
+                console.log('✅ Cache do Twitter limpo');
+              }
+            } catch (error) {
+              console.warn('⚠️ Erro ao limpar cache:', error);
+            }
+          }
 
           // Deslogar do Firebase Auth também
           try {
@@ -608,7 +635,7 @@ function TwitterBearerTokenModal({ isOpen, onClose }: { isOpen: boolean; onClose
       const { app } = await import('@/lib/firebase');
       const auth = getAuth(app);
       const user = auth.currentUser;
-      
+
       if (!user) {
         toast({
           variant: 'destructive',

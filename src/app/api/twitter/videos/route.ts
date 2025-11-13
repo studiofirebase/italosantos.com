@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getAdminApp } from '@/lib/firebase-admin';
 import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
+import { filterPersonalMedia } from '@/lib/twitter-media-filter';
 
 export async function GET(request: NextRequest) {
     try {
@@ -47,26 +48,21 @@ export async function GET(request: NextRequest) {
         // Verificar cache no Firestore
         const cacheDoc = await db.collection('twitter_cache').doc(username).collection('media').doc('videos').get();
 
-        if (cacheDoc.exists) {
-            const cacheData = cacheDoc.data();
-            const cacheAge = Date.now() - new Date(cacheData!.timestamp).getTime();
-            const oneHour = 60 * 60 * 1000;
-
-            if (cacheAge < oneHour && cacheData!.data) {
-                console.log('[HYBRID-VIDEOS] ✅ Retornando cache válido');
-                return NextResponse.json({
-                    success: true,
-                    tweets: cacheData!.data,
-                    cached: true,
-                    username: username
-                });
-            }
-            console.log('[HYBRID-VIDEOS] ⚠️ Cache expirado');
+        if (cacheDoc.exists && cacheDoc.data()?.data) {
+            console.log('[HYBRID-VIDEOS] ✅ Retornando cache (válido até logout)');
+            return NextResponse.json({
+                success: true,
+                tweets: cacheDoc.data()!.data,
+                cached: true,
+                username: username
+            });
         }
+
+        console.log('[HYBRID-VIDEOS] ⚠️ Cache não encontrado, buscando da API...');
 
         // Buscar Bearer Token (prioridade: Firestore > .env)
         let bearerToken: string | undefined;
-        
+
         try {
             const configDoc = await db.collection('twitter_config').doc('bearer_token').get();
             if (configDoc.exists && configDoc.data()?.token) {
@@ -145,7 +141,8 @@ export async function GET(request: NextRequest) {
             users.map((u: any) => [u.id, { id: u.id, username: u.username, profile_image_url: u.profile_image_url }])
         );
 
-        const tweetsWithVideos = (tweetsData.data || []).map((tweet: any) => {
+        // Preparar todos os tweets com mídia para análise do Gemini
+        const allTweetsWithMedia = (tweetsData.data || []).map((tweet: any) => {
             const author = userMap.get(tweet.author_id);
             return {
                 id: tweet.id,
@@ -154,15 +151,22 @@ export async function GET(request: NextRequest) {
                 username: author?.username || 'unknown',
                 profile_image_url: author?.profile_image_url || '',
                 media: (tweet.attachments?.media_keys || []).map((key: string) => {
-                    return mediaIncludes.find((m: any) => m.media_key === key && (m.type === 'video' || m.type === 'animated_gif'));
+                    return mediaIncludes.find((m: any) => m.media_key === key);
                 }).filter(Boolean),
             };
         }).filter((tweet: any) => tweet.media.length > 0);
 
-        console.log('[HYBRID-VIDEOS] Encontrados', tweetsWithVideos.length, 'tweets com vídeos');
+        console.log('[HYBRID-VIDEOS] 📊 Total de tweets com mídia:', allTweetsWithMedia.length);
 
-        // Salvar cache no Firestore (máximo 25 tweets)
-        const tweetsToCache = tweetsWithVideos.slice(0, 25);
+        // Usar Gemini para filtrar inteligentemente 25 vídeos pessoais
+        console.log('[HYBRID-VIDEOS] 🤖 Usando Gemini para filtrar vídeos pessoais...');
+        const { videos, reasoning } = await filterPersonalMedia(allTweetsWithMedia, username);
+
+        console.log('[HYBRID-VIDEOS] ✅ Gemini filtrou', videos.length, 'vídeos pessoais');
+        console.log('[HYBRID-VIDEOS] 💡 Raciocínio:', reasoning);
+
+        // Salvar cache no Firestore (vídeos filtrados pelo Gemini)
+        const tweetsToCache = videos;
         await db.collection('twitter_cache').doc(username).collection('media').doc('videos').set({
             data: tweetsToCache,
             timestamp: new Date().toISOString(),
