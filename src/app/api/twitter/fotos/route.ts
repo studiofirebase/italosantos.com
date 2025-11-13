@@ -104,9 +104,9 @@ export async function GET(request: NextRequest) {
             console.log('[HYBRID-PHOTOS] ✅ Twitter User ID salvo:', userId);
         }
 
-        // Buscar tweets com fotos
+        // Buscar tweets com fotos (excluindo retweets e replies, máximo 25 resultados)
         const tweetsResponse = await fetch(
-            `https://api.twitter.com/2/users/${userId}/tweets?max_results=100&expansions=attachments.media_keys,author_id&tweet.fields=created_at,text,public_metrics&media.fields=url,preview_image_url,type,media_key,width,height,alt_text&user.fields=profile_image_url,username`,
+            `https://api.twitter.com/2/users/${userId}/tweets?max_results=25&exclude=retweets,replies&expansions=attachments.media_keys,author_id&tweet.fields=created_at,text,public_metrics&media.fields=url,preview_image_url,type,media_key,width,height,alt_text&user.fields=profile_image_url,username`,
             {
                 headers: {
                     'Authorization': `Bearer ${bearerToken}`,
@@ -145,8 +145,8 @@ export async function GET(request: NextRequest) {
 
     console.log('[HYBRID-PHOTOS] Encontrados', tweetsWithPhotos.length, 'tweets com fotos');
 
-    // Salvar cache no Firestore (limitar a 10 tweets)
-    const tweetsToCache = tweetsWithPhotos.slice(0, 10);
+    // Salvar cache no Firestore (máximo 25 tweets)
+    const tweetsToCache = tweetsWithPhotos.slice(0, 25);
     await db.collection('twitter_cache').doc(username).collection('media').doc('photos').set({
       data: tweetsToCache,
       timestamp: new Date().toISOString(),
