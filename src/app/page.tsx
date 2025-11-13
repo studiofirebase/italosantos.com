@@ -11,6 +11,7 @@ import { useAuth } from '@/contexts/AuthProvider';
 import { useRouter } from 'next/navigation';
 import { useProfileConfig } from '@/hooks/use-profile-config';
 import { useSubscriptionSettings } from '@/hooks/use-subscription-settings';
+import { InstagramCallbackHandler } from '@/components/InstagramCallbackHandler';
 
 // Split below-the-fold sections to reduce initial JS
 const FeatureMarquee = dynamic(() => import('@/components/feature-marquee'), { ssr: false, loading: () => <div style={{ height: 96 }} /> });
@@ -505,6 +506,8 @@ export default function Home() {
                 onPaymentSuccess={handlePaymentSuccess}
             />
 
+            {/* Handler para Instagram OAuth callback */}
+            <InstagramCallbackHandler />
 
         </>
     );

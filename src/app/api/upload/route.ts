@@ -119,14 +119,19 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }
         });
 
-        await fileUpload.makePublic();
+        // Tornar público
+        try {
+          await fileUpload.makePublic();
+          console.log('[Upload API] Arquivo tornado público com sucesso');
+        } catch (publicError) {
+          console.warn('[Upload API] Aviso: Não foi possível tornar arquivo público:', publicError);
+          // Continuar mesmo se falhar - o arquivo ainda pode ser acessado via Firebase Storage Rules
+        }
         
         storageType = 'firebase-storage';
         finalUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
         
-        if (process.env.NODE_ENV === 'development') {
-          console.log('[Upload API] Imagem enviada para Firebase Storage:', finalUrl);
-        }
+        console.log('[Upload API] Imagem enviada para Firebase Storage:', finalUrl);
       } else if (isVideo && fileSize <= VIDEO_STORAGE_LIMIT) {
         // Vídeo - sempre usar Firebase Storage (otimizado para streaming)
         if (process.env.NODE_ENV === 'development') {

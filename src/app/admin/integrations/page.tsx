@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { useSearchParams } from "next/navigation";
 import IntegrationCard from "./components/IntegrationCard";
 import PayPalLoginButton from "@/components/auth/PayPalLoginButton";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -26,6 +27,7 @@ type Integration = 'twitter' | 'instagram' | 'facebook' | 'paypal' | 'mercadopag
 
 export default function AdminIntegrationsPage() {
   const { toast } = useToast();
+  const searchParams = useSearchParams();
   const [integrations, setIntegrations] = useState<Record<string, boolean>>({
     twitter: false,
     instagram: false,
@@ -104,47 +106,55 @@ export default function AdminIntegrationsPage() {
     }
   };
 
-  // Conectar Instagram via popup do SDK da Meta
+  // Conectar Instagram via OAuth Flow (Instagram Business Login)
   const handleInstagramConnect = async () => {
     updateIsLoading('instagram', true);
 
     try {
-      console.log('[Instagram] Iniciando login via popup...');
+      console.log('[Instagram] Iniciando Instagram Business Login (OAuth)...');
 
-      // Obter perfil via popup
-      const profile = await metaSDK.loginWithInstagram();
-      console.log('[Instagram] Perfil coletado:', profile);
+      // Primeiro fazer login com Facebook SDK
+      await metaSDK.initialize();
+      
+      console.log('[Instagram] Verificando status de login do Facebook...');
+      const loginStatus = await metaSDK.getLoginStatus();
 
-      // Obter usuário atual autenticado no Firebase
-      const auth = getAuth(app);
-      const currentUser = auth.currentUser;
+      let accessToken: string;
 
-      if (!currentUser) {
-        throw new Error('Usuário não autenticado. Faça login primeiro.');
+      if (loginStatus.status === 'connected' && loginStatus.authResponse) {
+        console.log('[Instagram] Já está logado no Facebook, usando token existente');
+        accessToken = loginStatus.authResponse.accessToken;
+      } else {
+        console.log('[Instagram] Não está logado, abrindo popup de login do Facebook...');
+        
+        // Fazer login via Facebook SDK com scopes necessários
+        const facebookProfile = await metaSDK.loginWithFacebook();
+        console.log('[Instagram] Login do Facebook concluído:', facebookProfile);
+
+        // Pegar o novo token
+        const newStatus = await metaSDK.getLoginStatus();
+        if (!newStatus.authResponse) {
+          throw new Error('Não foi possível obter access token do Facebook');
+        }
+        accessToken = newStatus.authResponse.accessToken;
       }
 
-      // Salvar perfil no Firestore
-      const response = await fetch('/api/admin/meta/profile', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: currentUser.uid,
-          profile: profile,
-        }),
-      });
+      console.log('[Instagram] Access token obtido, salvando e redirecionando...');
 
-      const result = await response.json();
+      // Salvar token no sessionStorage para usar no callback
+      sessionStorage.setItem('fb_access_token', accessToken);
 
-      if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Erro ao salvar perfil');
-      }
+      // Gerar state para CSRF protection
+      const state = Math.random().toString(36).substring(2, 15);
+      sessionStorage.setItem('instagram_oauth_state', state);
 
-      setIntegrations(prev => ({ ...prev, instagram: true }));
+      // Obter URL de autorização oficial do Instagram
+      const authUrl = metaSDK.getInstagramAuthUrl(state);
 
-      toast({
-        title: "Instagram conectado!",
-        description: `Bem-vindo, ${profile.name}! Seus dados foram salvos.`,
-      });
+      console.log('[Instagram] Redirecionando para autorização oficial:', authUrl);
+
+      // Redirecionar para autorização do Instagram
+      window.location.href = authUrl;
 
     } catch (error) {
       console.error('[Instagram] Erro:', error);
@@ -153,7 +163,6 @@ export default function AdminIntegrationsPage() {
         title: "Erro ao conectar",
         description: error instanceof Error ? error.message : "Erro desconhecido",
       });
-    } finally {
       updateIsLoading('instagram', false);
     }
   };
@@ -186,6 +195,37 @@ export default function AdminIntegrationsPage() {
 
     checkTwitterAuth();
   }, []);
+
+  // Verificar se retornou do OAuth do Instagram
+  useEffect(() => {
+    const instagramSuccess = searchParams.get('instagram_success');
+    const instagramUsername = searchParams.get('username');
+    const instagramError = searchParams.get('instagram_error');
+
+    if (instagramSuccess === 'true') {
+      toast({
+        title: "Instagram conectado!",
+        description: `Conta @${instagramUsername} conectada com sucesso! ✅`,
+      });
+
+      // Atualizar estado
+      setIntegrations(prev => ({ ...prev, instagram: true }));
+
+      // Limpar URL
+      window.history.replaceState({}, '', '/admin/integrations');
+    }
+
+    if (instagramError) {
+      toast({
+        variant: 'destructive',
+        title: "Erro ao conectar Instagram",
+        description: decodeURIComponent(instagramError),
+      });
+
+      // Limpar URL
+      window.history.replaceState({}, '', '/admin/integrations');
+    }
+  }, [searchParams, toast]);
 
   useEffect(() => {
     async function fetchAllStatus() {
@@ -480,6 +520,17 @@ export default function AdminIntegrationsPage() {
   const handleDisconnect = async (platform: Integration) => {
     setIsLoading(prev => ({ ...prev, [platform]: true }));
     try {
+      // Para Facebook/Instagram, fazer logout do SDK antes
+      if (platform === 'facebook' || platform === 'instagram') {
+        console.log(`[${platform}] Fazendo logout do Facebook SDK...`);
+        try {
+          await metaSDK.logout();
+          console.log(`[${platform}] ✅ Logout do SDK concluído`);
+        } catch (sdkError) {
+          console.warn(`[${platform}] Erro no logout do SDK (continuando):`, sdkError);
+        }
+      }
+
       const res = await fetch('/api/admin/integrations/disconnect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -634,6 +685,20 @@ export default function AdminIntegrationsPage() {
           onDisconnect={() => handleDisconnect('facebook')}
           onSync={() => handleSyncFeed('facebook')}
           syncing={isLoading.facebook}
+        />
+
+        {/* Card do Instagram separado */}
+        <IntegrationCard
+          platform="instagram"
+          title="Instagram Business"
+          description="Conectar conta Instagram Business para gerenciar posts e mensagens."
+          icon={<InstagramIcon />}
+          isConnected={integrations.instagram}
+          isLoading={isLoading.instagram}
+          onConnect={handleInstagramConnect}
+          onDisconnect={() => handleDisconnect('instagram')}
+          onSync={() => handleSyncFeed('instagram')}
+          syncing={isLoading.instagram}
         />
 
         {/* Card do PayPal separado */}
