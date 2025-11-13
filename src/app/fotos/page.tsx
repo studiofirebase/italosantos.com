@@ -319,18 +319,18 @@ const TwitterPhotos = () => {
                 const accessToken = await user.getIdToken();
                 console.log('🔑 [FOTOS] Token obtido');
 
-                // Verificar cache primeiro
-                const cachedPhotos = getCachedPhotos(user.uid);
+                // Verificar cache FIRESTORE primeiro (compartilhado entre dispositivos)
+                const cachedPhotos = await getCachedPhotos(user.uid);
                 if (cachedPhotos && cachedPhotos.length > 0) {
-                    console.log('📦 [FOTOS] Usando cache com', cachedPhotos.length, 'fotos');
+                    console.log('📦 [FOTOS] Usando cache FIRESTORE com', cachedPhotos.length, 'fotos');
                     setTweets(cachedPhotos);
                     setUsingCache(true);
                     setIsLoading(false);
 
                     const stats = getCacheStats();
                     toast({
-                        title: '📦 Cache carregado',
-                        description: `${cachedPhotos.length} fotos do cache (${stats?.age || 'idade desconhecida'})`,
+                        title: '📦 Cache Compartilhado',
+                        description: `${cachedPhotos.length} fotos do Firestore (visível em todos dispositivos)`,
                     });
                 }
 

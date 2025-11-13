@@ -85,52 +85,114 @@ export function cacheVideos(videos: TweetWithMedia[], username: string): void {
 }
 
 /**
- * Busca fotos do cache
+ * Busca fotos do cache (AGORA DO FIRESTORE - compartilhado entre dispositivos)
  */
-export function getCachedPhotos(username: string): TweetWithMedia[] | null {
+export async function getCachedPhotos(username: string): Promise<TweetWithMedia[] | null> {
     try {
-        const cache = getCache();
+        // Buscar do Firestore ao invés de localStorage
+        const { db } = await import('@/lib/firebase');
+        const { doc, getDoc } = await import('firebase/firestore');
 
-        // Verificar se o cache é válido
-        if (!isCacheValid(cache, username)) {
-            console.log('⚠️ Cache inválido ou expirado');
+        const cacheDoc = await getDoc(doc(db, 'twitter_cache', username, 'media', 'photos'));
+
+        if (!cacheDoc.exists()) {
+            console.log('⚠️ Cache do Firestore não encontrado');
             return null;
         }
 
-        if (cache.photos && cache.photos.length >= MIN_CACHE_ITEMS) {
-            console.log(`✅ Cache: ${cache.photos.length} fotos recuperadas para @${username}`);
-            return cache.photos;
+        const cacheData = cacheDoc.data();
+        const cacheAge = Date.now() - cacheData.timestamp;
+
+        // Verificar se o cache expirou (1 hora)
+        if (cacheAge > CACHE_EXPIRY_MS) {
+            console.log('⚠️ Cache do Firestore expirado');
+            return null;
+        }
+
+        if (cacheData.tweets && cacheData.tweets.length >= MIN_CACHE_ITEMS) {
+            console.log(`✅ Cache Firestore: ${cacheData.tweets.length} fotos recuperadas para @${username}`);
+            return cacheData.tweets;
         }
 
         return null;
     } catch (error) {
-        console.warn('⚠️ Erro ao buscar fotos do cache:', error);
-        return null;
+        console.warn('⚠️ Erro ao buscar fotos do cache Firestore:', error);
+
+        // Fallback para localStorage (compatibilidade)
+        try {
+            const cache = getCache();
+
+            // Verificar se o cache é válido
+            if (!isCacheValid(cache, username)) {
+                console.log('⚠️ Cache inválido ou expirado');
+                return null;
+            }
+
+            if (cache.photos && cache.photos.length >= MIN_CACHE_ITEMS) {
+                console.log(`✅ Cache: ${cache.photos.length} fotos recuperadas para @${username}`);
+                return cache.photos;
+            }
+
+            return null;
+        } catch (error) {
+            console.warn('⚠️ Erro ao buscar fotos do cache:', error);
+            return null;
+        }
     }
 }
 
 /**
- * Busca vídeos do cache
+ * Busca vídeos do cache (AGORA DO FIRESTORE - compartilhado entre dispositivos)
  */
-export function getCachedVideos(username: string): TweetWithMedia[] | null {
+export async function getCachedVideos(username: string): Promise<TweetWithMedia[] | null> {
     try {
-        const cache = getCache();
+        // Buscar do Firestore ao invés de localStorage
+        const { db } = await import('@/lib/firebase');
+        const { doc, getDoc } = await import('firebase/firestore');
 
-        // Verificar se o cache é válido
-        if (!isCacheValid(cache, username)) {
-            console.log('⚠️ Cache inválido ou expirado');
+        const cacheDoc = await getDoc(doc(db, 'twitter_cache', username, 'media', 'videos'));
+
+        if (!cacheDoc.exists()) {
+            console.log('⚠️ Cache do Firestore não encontrado');
             return null;
         }
 
-        if (cache.videos && cache.videos.length >= MIN_CACHE_ITEMS) {
-            console.log(`✅ Cache: ${cache.videos.length} vídeos recuperados para @${username}`);
-            return cache.videos;
+        const cacheData = cacheDoc.data();
+        const cacheAge = Date.now() - cacheData.timestamp;
+
+        // Verificar se o cache expirou (1 hora)
+        if (cacheAge > CACHE_EXPIRY_MS) {
+            console.log('⚠️ Cache do Firestore expirado');
+            return null;
+        }
+
+        if (cacheData.tweets && cacheData.tweets.length >= MIN_CACHE_ITEMS) {
+            console.log(`✅ Cache Firestore: ${cacheData.tweets.length} vídeos recuperados para @${username}`);
+            return cacheData.tweets;
         }
 
         return null;
     } catch (error) {
-        console.warn('⚠️ Erro ao buscar vídeos do cache:', error);
-        return null;
+        console.warn('⚠️ Erro ao buscar vídeos do cache Firestore:', error);
+
+        // Fallback para localStorage (compatibilidade)
+        try {
+            const cache = getCache();
+            if (!isCacheValid(cache, username)) {
+                console.log('⚠️ Cache inválido ou expirado');
+                return null;
+            }
+
+            if (cache.videos && cache.videos.length >= MIN_CACHE_ITEMS) {
+                console.log(`✅ Cache: ${cache.videos.length} vídeos recuperados para @${username}`);
+                return cache.videos;
+            }
+
+            return null;
+        } catch (error) {
+            console.warn('⚠️ Erro ao buscar vídeos do cache:', error);
+            return null;
+        }
     }
 }
 

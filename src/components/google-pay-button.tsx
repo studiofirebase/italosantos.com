@@ -126,9 +126,15 @@ export default function GooglePayButton({ amount, currency, onSuccess, className
             },
             tokenizationSpecification: {
               type: 'PAYMENT_GATEWAY',
-              parameters: {
+              parameters: envConfig.gateway === 'braintree' ? {
+                gateway: 'braintree',
+                'braintree:merchantId': envConfig.gatewayMerchantId || '75tzy2qyrkv9hfwj',
+                'braintree:apiVersion': 'v1',
+                'braintree:sdkVersion': process.env.NEXT_PUBLIC_BRAINTREE_CLIENT_VERSION || '3.88.4',
+                'braintree:authorizationFingerprint': process.env.NEXT_PUBLIC_BRAINTREE_AUTH_FINGERPRINT || ''
+              } : {
                 gateway: envConfig.gateway,
-                gatewayMerchantId: merchantId,
+                gatewayMerchantId: envConfig.gatewayMerchantId || merchantId,
               },
             },
           },

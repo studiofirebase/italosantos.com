@@ -1,17 +1,17 @@
 // Configuração centralizada do Google Pay
 export const GOOGLE_PAY_CONFIG = {
   // Merchant ID - configuração para teste
-  merchantId: process.env.NEXT_PUBLIC_GOOGLE_PAY_ENVIRONMENT === 'TEST' 
+  merchantId: process.env.NEXT_PUBLIC_GOOGLE_PAY_ENVIRONMENT === 'TEST'
     ? '01234567890123456789' // ID de teste padrão do Google
     : (process.env.NEXT_PUBLIC_GOOGLE_PAY_MERCHANT_ID || 'BCR2DN4T6OKKN3DX'), // ID real para produção
-  
+
   // Nome do comerciante
   merchantName: process.env.NEXT_PUBLIC_GOOGLE_PAY_MERCHANT_NAME || 'Italo Santos Studio',
-  
+
   // Ambiente (TEST ou PRODUCTION)
-  environment: process.env.NEXT_PUBLIC_GOOGLE_PAY_ENVIRONMENT || 
-               (process.env.NODE_ENV === 'production' ? 'PRODUCTION' : 'TEST'),
-  
+  environment: process.env.NEXT_PUBLIC_GOOGLE_PAY_ENVIRONMENT ||
+    (process.env.NODE_ENV === 'production' ? 'PRODUCTION' : 'TEST'),
+
   // Configuração de pagamento
   paymentMethods: {
     type: 'CARD',
@@ -32,7 +32,7 @@ export const GOOGLE_PAY_CONFIG = {
       },
     },
   },
-  
+
   // Configuração de transação
   transactionInfo: {
     totalPriceStatus: 'FINAL',
@@ -45,25 +45,25 @@ export const GOOGLE_PAY_CONFIG = {
 // Função para validar configuração
 export function validateGooglePayConfig() {
   const issues: string[] = [];
-  
+
   if (!GOOGLE_PAY_CONFIG.merchantId) {
     issues.push('Merchant ID não configurado');
   }
-  
-  if (GOOGLE_PAY_CONFIG.environment === 'PRODUCTION' && 
-      (GOOGLE_PAY_CONFIG.merchantId === '01234567890123456789' || 
-       GOOGLE_PAY_CONFIG.merchantId.length < 10)) {
+
+  if (GOOGLE_PAY_CONFIG.environment === 'PRODUCTION' &&
+    (GOOGLE_PAY_CONFIG.merchantId === '01234567890123456789' ||
+      GOOGLE_PAY_CONFIG.merchantId.length < 10)) {
     issues.push('Merchant ID inválido para produção');
   }
-  
+
   // Em ambiente de teste, permitir merchant ID de exemplo
   if (GOOGLE_PAY_CONFIG.environment === 'TEST' && !GOOGLE_PAY_CONFIG.merchantId) {
     issues.push('Merchant ID não configurado para teste');
   }
-  
+
   // Gateway 'example' é válido quando é o único disponível
   // Removida validação que impedia uso do gateway example
-  
+
   return {
     isValid: issues.length === 0,
     issues,
@@ -91,20 +91,26 @@ export function getPaymentDataRequest(amount: number, currency: string = 'BRL') 
 
 // Função para obter configuração específica do ambiente
 export function getEnvironmentSpecificConfig() {
-  const isLocalhost = typeof window !== 'undefined' && 
+  const isLocalhost = typeof window !== 'undefined' &&
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-  
-  const isFirebase = typeof window !== 'undefined' && 
+
+  const isFirebase = typeof window !== 'undefined' &&
     window.location.hostname.includes('firebaseapp.com');
-  
+
   const isProduction = process.env.NODE_ENV === 'production' && !isLocalhost;
-  
+
+  // IMPORTANTE: Para produção, usar merchantId real e gateway correto
+  // O erro O11 ocorre quando merchantId/gateway não estão configurados corretamente
+
   return {
     isLocalhost,
     isFirebase,
     isProduction,
-    environment: isLocalhost ? 'TEST' : (isProduction ? 'PRODUCTION' : 'TEST'),
-    merchantId: isLocalhost ? '01234567890123456789' : GOOGLE_PAY_CONFIG.merchantId,
-    gateway: isLocalhost ? 'example' : (isProduction ? 'stripe' : 'example')
+    // PRODUÇÃO: Usar PRODUCTION com merchantId e gateway reais
+    environment: isProduction ? 'PRODUCTION' : 'TEST',
+    merchantId: isProduction ? 'BCR2DN4T6OKKN3DX' : '01234567890123456789',
+    // Gateway para produção: braintree
+    gateway: isProduction ? 'braintree' : 'example',
+    gatewayMerchantId: isProduction ? '75tzy2qyrkv9hfwj' : '01234567890123456789'
   };
 }

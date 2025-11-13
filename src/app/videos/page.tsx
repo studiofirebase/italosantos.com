@@ -166,18 +166,18 @@ const TwitterVideos = () => {
                 const accessToken = await user.getIdToken();
                 console.log('🔑 [VIDEOS] Token obtido');
 
-                // Verificar cache primeiro
-                const cachedVideos = getCachedVideos(user.uid);
+                // Verificar cache FIRESTORE primeiro (compartilhado entre dispositivos)
+                const cachedVideos = await getCachedVideos(user.uid);
                 if (cachedVideos && cachedVideos.length > 0) {
-                    console.log('📦 [VIDEOS] Usando cache com', cachedVideos.length, 'vídeos');
+                    console.log('📦 [VIDEOS] Usando cache FIRESTORE com', cachedVideos.length, 'vídeos');
                     setTweets(cachedVideos);
                     setUsingCache(true);
                     setIsLoading(false);
 
                     const stats = getCacheStats();
                     toast({
-                        title: '📦 Cache carregado',
-                        description: `${cachedVideos.length} vídeos do cache (${stats?.age || 'idade desconhecida'})`,
+                        title: '📦 Cache Compartilhado',
+                        description: `${cachedVideos.length} vídeos do Firestore (visível em todos dispositivos)`,
                     });
                 }
 
