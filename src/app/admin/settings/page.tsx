@@ -1329,6 +1329,176 @@ export default function AdminSettingsPage() {
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* PayPal Configuration Card */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <CreditCard className="h-5 w-5" />
+                                Configurações do PayPal
+                            </CardTitle>
+                            <CardDescription>
+                                Configure suas credenciais do PayPal para receber pagamentos
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <Label htmlFor="paypalEmail" className="text-base font-semibold">
+                                        Email do PayPal
+                                    </Label>
+                                </div>
+                                <Input
+                                    id="paypalEmail"
+                                    type="email"
+                                    value={settings.paymentSettings?.paypalEmail || ''}
+                                    onChange={(e) => handleNestedChange('paymentSettings', 'paypalEmail', e.target.value)}
+                                    placeholder="seu-email@paypal.com"
+                                    className="h-12 border-2 focus:border-blue-500 focus:ring-blue-500"
+                                />
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <Label htmlFor="paypalClientId" className="text-base font-semibold">
+                                        Client ID
+                                    </Label>
+                                </div>
+                                <Input
+                                    id="paypalClientId"
+                                    type="text"
+                                    value={settings.paymentSettings?.paypalClientId || ''}
+                                    onChange={(e) => handleNestedChange('paymentSettings', 'paypalClientId', e.target.value)}
+                                    placeholder="Digite o Client ID do PayPal"
+                                    className="h-12 border-2 focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"
+                                />
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <Label htmlFor="paypalClientSecret" className="text-base font-semibold">
+                                        Client Secret
+                                    </Label>
+                                </div>
+                                <Input
+                                    id="paypalClientSecret"
+                                    type="password"
+                                    value={settings.paymentSettings?.paypalClientSecret || ''}
+                                    onChange={(e) => handleNestedChange('paymentSettings', 'paypalClientSecret', e.target.value)}
+                                    placeholder="Digite o Client Secret do PayPal"
+                                    className="h-12 border-2 focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"
+                                />
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="checkbox"
+                                    id="paypalSandboxMode"
+                                    checked={settings.paymentSettings?.paypalSandboxMode ?? false}
+                                    onChange={(e) => handleNestedChange('paymentSettings', 'paypalSandboxMode', e.target.checked)}
+                                    className="rounded border-gray-300"
+                                />
+                                <Label htmlFor="paypalSandboxMode" className="text-sm cursor-pointer">
+                                    Usar modo Sandbox (teste)
+                                </Label>
+                            </div>
+
+                            <div className="mt-6 p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">💡 Como obter credenciais:</h4>
+                                <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
+                                    <li>• Acesse o <a href="https://developer.paypal.com" target="_blank" rel="noopener noreferrer" className="underline">PayPal Developer Dashboard</a></li>
+                                    <li>• Crie um aplicativo e copie o Client ID e Secret</li>
+                                    <li>• Use Sandbox para testes e Production para pagamentos reais</li>
+                                    <li>• Mantenha o Client Secret seguro e nunca o compartilhe</li>
+                                </ul>
+                            </div>
+                        </CardContent>
+                    </Card>
+
+                    {/* MercadoPago Configuration Card */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <CreditCard className="h-5 w-5" />
+                                Configurações do Mercado Pago
+                            </CardTitle>
+                            <CardDescription>
+                                Configure suas credenciais do Mercado Pago para receber pagamentos
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <Label htmlFor="mercadoPagoEmail" className="text-base font-semibold">
+                                        Email do Mercado Pago
+                                    </Label>
+                                </div>
+                                <Input
+                                    id="mercadoPagoEmail"
+                                    type="email"
+                                    value={settings.paymentSettings?.mercadoPagoEmail || ''}
+                                    onChange={(e) => handleNestedChange('paymentSettings', 'mercadoPagoEmail', e.target.value)}
+                                    placeholder="seu-email@mercadopago.com"
+                                    className="h-12 border-2 focus:border-blue-500 focus:ring-blue-500"
+                                />
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <Label htmlFor="mercadoPagoPublicKey" className="text-base font-semibold">
+                                        Public Key
+                                    </Label>
+                                </div>
+                                <Input
+                                    id="mercadoPagoPublicKey"
+                                    type="text"
+                                    value={settings.paymentSettings?.mercadoPagoPublicKey || ''}
+                                    onChange={(e) => handleNestedChange('paymentSettings', 'mercadoPagoPublicKey', e.target.value)}
+                                    placeholder="Digite a Public Key do Mercado Pago"
+                                    className="h-12 border-2 focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"
+                                />
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex items-center gap-2">
+                                    <Label htmlFor="mercadoPagoAccessToken" className="text-base font-semibold">
+                                        Access Token
+                                    </Label>
+                                </div>
+                                <Input
+                                    id="mercadoPagoAccessToken"
+                                    type="password"
+                                    value={settings.paymentSettings?.mercadoPagoAccessToken || ''}
+                                    onChange={(e) => handleNestedChange('paymentSettings', 'mercadoPagoAccessToken', e.target.value)}
+                                    placeholder="Digite o Access Token do Mercado Pago"
+                                    className="h-12 border-2 focus:border-blue-500 focus:ring-blue-500 font-mono text-sm"
+                                />
+                            </div>
+
+                            <div className="flex items-center space-x-2">
+                                <input
+                                    type="checkbox"
+                                    id="mercadoPagoSandboxMode"
+                                    checked={settings.paymentSettings?.mercadoPagoSandboxMode ?? false}
+                                    onChange={(e) => handleNestedChange('paymentSettings', 'mercadoPagoSandboxMode', e.target.checked)}
+                                    className="rounded border-gray-300"
+                                />
+                                <Label htmlFor="mercadoPagoSandboxMode" className="text-sm cursor-pointer">
+                                    Usar modo Sandbox (teste)
+                                </Label>
+                            </div>
+
+                            <div className="mt-6 p-4 bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+                                <h4 className="text-sm font-medium text-yellow-900 dark:text-yellow-100 mb-2">💡 Como obter credenciais:</h4>
+                                <ul className="text-xs text-yellow-800 dark:text-yellow-200 space-y-1">
+                                    <li>• Acesse o <a href="https://www.mercadopago.com.br/developers" target="_blank" rel="noopener noreferrer" className="underline">Mercado Pago Developer</a></li>
+                                    <li>• Crie uma aplicação e copie a Public Key e Access Token</li>
+                                    <li>• Use credenciais de teste para desenvolvimento</li>
+                                    <li>• Mantenha o Access Token seguro e nunca o compartilhe</li>
+                                </ul>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </TabsContent>
             </Tabs>
         </div>
