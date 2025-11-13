@@ -63,14 +63,18 @@ export default function AdminSubscriptionsPage() {
   const fetchSubscriptions = async () => {
     setIsLoading(true);
     try {
+      console.log('[Subscriptions Page] Iniciando fetch...');
       const result = await getAllSubscriptionsAdmin();
+      console.log('[Subscriptions Page] Resultado:', result);
 
       if (result.success) {
         // Randomizar as assinaturas antes de exibir
         const randomizedSubscriptions = shuffleArray(result.subscriptions || [])
+        console.log('[Subscriptions Page] Total de assinaturas:', randomizedSubscriptions.length);
         setSubscriptions(randomizedSubscriptions);
         setFilteredSubscriptions(randomizedSubscriptions);
       } else {
+        console.error('[Subscriptions Page] Erro no resultado:', result.error);
         toast({
           variant: 'destructive',
           title: 'Erro ao carregar assinaturas',
@@ -78,10 +82,11 @@ export default function AdminSubscriptionsPage() {
         });
       }
     } catch (error: any) {
+      console.error('[Subscriptions Page] Exceção capturada:', error);
       toast({
         variant: 'destructive',
         title: 'Erro ao carregar assinaturas',
-        description: error?.message || 'Erro interno do servidor'
+        description: error?.message || error?.toString() || 'Erro interno do servidor'
       });
     } finally {
       setIsLoading(false);
@@ -456,115 +461,115 @@ export default function AdminSubscriptionsPage() {
               <div className="min-w-full inline-block align-middle">
                 <Table className="w-full table-auto"
                   style={{ tableLayout: 'auto' }}>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="text-xs sm:text-sm whitespace-nowrap">Assinante</TableHead>
-                    <TableHead className="text-xs sm:text-sm whitespace-nowrap">Plano</TableHead>
-                    <TableHead className="text-xs sm:text-sm whitespace-nowrap">Status</TableHead>
-                    <TableHead className="text-xs sm:text-sm whitespace-nowrap">Pagamento</TableHead>
-                    <TableHead className="text-xs sm:text-sm whitespace-nowrap">Valor</TableHead>
-                    <TableHead className="text-xs sm:text-sm whitespace-nowrap">Período</TableHead>
-                    <TableHead className="text-xs sm:text-sm whitespace-nowrap">Tempo Restante</TableHead>
-                    <TableHead className="text-xs sm:text-sm whitespace-nowrap">Ações</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredSubscriptions.map((subscription) => {
-                    const daysRemaining = getDaysRemaining(subscription.endDate);
-                    const isExpiringSoon = daysRemaining <= 7 && daysRemaining > 0;
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Assinante</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Plano</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Status</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Pagamento</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Valor</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Período</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Tempo Restante</TableHead>
+                      <TableHead className="text-xs sm:text-sm whitespace-nowrap">Ações</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredSubscriptions.map((subscription) => {
+                      const daysRemaining = getDaysRemaining(subscription.endDate);
+                      const isExpiringSoon = daysRemaining <= 7 && daysRemaining > 0;
 
-                    return (
-                      <TableRow key={subscription.id} className={isExpiringSoon ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                              <User className="w-4 h-4" />
-                            </div>
-                            <div>
-                              <div className="font-medium">{subscription.email}</div>
-                              <div className="text-xs text-muted-foreground">
-                                ID: {subscription.userId?.slice(0, 8)}...
+                      return (
+                        <TableRow key={subscription.id} className={isExpiringSoon ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
+                                <User className="w-4 h-4" />
+                              </div>
+                              <div>
+                                <div className="font-medium">{subscription.email}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  ID: {subscription.userId?.slice(0, 8)}...
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">
-                              {subscription.plan?.name || subscription.planId}
+                          </TableCell>
+                          <TableCell>
+                            <div>
+                              <div className="font-medium">
+                                {subscription.plan?.name || subscription.planId}
+                              </div>
+                              {subscription.plan?.popular && (
+                                <Badge variant="outline" className="text-xs">
+                                  <Crown className="w-3 h-3 mr-1" />
+                                  Popular
+                                </Badge>
+                              )}
                             </div>
-                            {subscription.plan?.popular && (
-                              <Badge variant="outline" className="text-xs">
-                                <Crown className="w-3 h-3 mr-1" />
-                                Popular
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(subscription.status)}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <CreditCard className="w-4 h-4 text-muted-foreground" />
-                            <span className="capitalize">{subscription.paymentMethod}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-medium">
-                            {formatPrice(subscription.plan?.price)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <div>Início: {formatDate(subscription.startDate)}</div>
-                            <div>Fim: {formatDate(subscription.endDate)}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {subscription.status === 'active' ? (
+                          </TableCell>
+                          <TableCell>
+                            {getStatusBadge(subscription.status)}
+                          </TableCell>
+                          <TableCell>
                             <div className="flex items-center gap-2">
-                              <Clock className="w-4 h-4 text-muted-foreground" />
-                              <span className={isExpiringSoon ? 'text-yellow-600 font-medium' : ''}>
-                                {daysRemaining > 0 ? `${daysRemaining} dias` : 'Expirada'}
-                              </span>
+                              <CreditCard className="w-4 h-4 text-muted-foreground" />
+                              <span className="capitalize">{subscription.paymentMethod}</span>
                             </div>
-                          ) : (
-                            <span className="text-muted-foreground">-</span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-wrap gap-2">
-                            <Button
-                              variant="default"
-                              size="sm"
-                              onClick={() => handleOpenGiftModal(subscription)}
-                              className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
-                            >
-                              <Gift className="h-4 w-4 mr-1" />
-                              Presentear
-                            </Button>
-                            {subscription.status === 'active' && (
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleCancelSubscription(subscription.id)}
-                              >
-                                <Trash2 className="h-4 w-4 mr-1" />
-                                Cancelar
-                              </Button>
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">
+                              {formatPrice(subscription.plan?.price)}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="text-sm">
+                              <div>Início: {formatDate(subscription.startDate)}</div>
+                              <div>Fim: {formatDate(subscription.endDate)}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            {subscription.status === 'active' ? (
+                              <div className="flex items-center gap-2">
+                                <Clock className="w-4 h-4 text-muted-foreground" />
+                                <span className={isExpiringSoon ? 'text-yellow-600 font-medium' : ''}>
+                                  {daysRemaining > 0 ? `${daysRemaining} dias` : 'Expirada'}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
                             )}
-                            <Button variant="outline" size="sm">
-                              <Eye className="h-4 w-4 mr-1" />
-                              Ver
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex flex-wrap gap-2">
+                              <Button
+                                variant="default"
+                                size="sm"
+                                onClick={() => handleOpenGiftModal(subscription)}
+                                className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white"
+                              >
+                                <Gift className="h-4 w-4 mr-1" />
+                                Presentear
+                              </Button>
+                              {subscription.status === 'active' && (
+                                <Button
+                                  variant="destructive"
+                                  size="sm"
+                                  onClick={() => handleCancelSubscription(subscription.id)}
+                                >
+                                  <Trash2 className="h-4 w-4 mr-1" />
+                                  Cancelar
+                                </Button>
+                              )}
+                              <Button variant="outline" size="sm">
+                                <Eye className="h-4 w-4 mr-1" />
+                                Ver
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
             </div>
           )}

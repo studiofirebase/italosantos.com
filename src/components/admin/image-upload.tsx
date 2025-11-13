@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Upload, Image as ImageIcon, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { storage } from '@/lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 
 interface ImageUploadProps {
     label: string;
@@ -48,20 +50,40 @@ export default function ImageUpload({
             const tempUrl = URL.createObjectURL(file);
             onImageChange(tempUrl);
             
-            // Aqui você pode implementar o upload real para seu storage
-            // Por enquanto, vamos simular um upload
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            // Upload real para Firebase Storage
+            const timestamp = Date.now();
+            const fileName = `${timestamp}-${file.name.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+            const storagePath = `uploads/${fileName}`;
+            const storageRef = ref(storage, storagePath);
+            
+            console.log(`⬆️ Uploading to: ${storagePath}`);
+            
+            // Upload do arquivo
+            await uploadBytes(storageRef, file, {
+                contentType: file.type,
+                customMetadata: {
+                    uploadedAt: new Date().toISOString(),
+                    originalName: file.name
+                }
+            });
+            
+            // Obter URL pública
+            const downloadURL = await getDownloadURL(storageRef);
+            console.log(`✅ Upload completo: ${downloadURL}`);
+            
+            // Atualizar com URL real do Firebase
+            onImageChange(downloadURL);
             
             toast({
                 title: "Imagem carregada!",
-                description: "A imagem foi carregada com sucesso."
+                description: "A imagem foi enviada para o Firebase Storage."
             });
         } catch (error) {
             console.error('Erro no upload:', error);
             toast({
                 variant: "destructive",
                 title: "Erro no upload",
-                description: "Não foi possível carregar a imagem."
+                description: error instanceof Error ? error.message : "Não foi possível carregar a imagem."
             });
         } finally {
             setUploading(false);

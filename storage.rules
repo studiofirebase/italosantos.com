@@ -1,12 +1,50 @@
 rules_version = '2';
 
-// Craft rules based on data in your Firestore database
-// allow write: if firestore.get(
-//    /databases/(default)/documents/users/$(request.auth.uid)).data.isAdmin;
 service firebase.storage {
   match /b/{bucket}/o {
+    // Pasta de uploads gerais (fotos, vídeos do admin)
+    match /uploads/{allPaths=**} {
+      // Leitura pública para todos os arquivos
+      allow read: if true;
+      
+      // Escrita apenas para usuários autenticados (admin via API)
+      allow write: if request.auth != null;
+    }
+    
+    // Pasta de twitter photos (cache)
+    match /twitter-photos/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Pasta de fotos de usuários
+    match /user-photos/{userId}/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // Pasta de chat (mensagens secretas)
+    match /chat-files/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+    }
+    
+    // General uploads (compatibilidade)
+    match /general-uploads/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Italosantos.com específicos
+    match /italosantos.com/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+    
+    // Fallback - negar acesso
     match /{allPaths=**} {
-      allow read, write: if true;
+      allow read: if false;
+      allow write: if false;
     }
   }
 }

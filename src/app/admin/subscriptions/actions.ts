@@ -10,103 +10,106 @@ async function getAllSubscriptionsFromUnifiedSource(): Promise<UserSubscription[
   const subscriptions: UserSubscription[] = [];
 
   try {
-    // console.log('[Actions] Buscando TODOS os usuários cadastrados...');
+    console.log('[Actions] Buscando TODOS os usuários cadastrados...');
 
     const adminDb = getAdminDb();
+
+    if (!adminDb) {
+      console.error('[Actions] AdminDb não inicializado');
+      return subscriptions;
+    }
+
     // 1. Buscar TODOS os usuários da coleção 'users' (não apenas isSubscriber = true)
-    if (adminDb) {
-      try {
-        const usersSnapshot = await adminDb.collection('users').get();
-        
-        usersSnapshot.forEach((doc: any) => {
-          const userData = doc.data();
-          
-          // Determinar status baseado em isSubscriber e subscriptionStatus
-          let status: 'active' | 'expired' | 'canceled' = 'expired';
-          if (userData.isSubscriber === true && userData.subscriptionStatus === 'active') {
-            status = 'active';
-          } else if (userData.subscriptionStatus === 'canceled') {
-            status = 'canceled';
-          }
-          
-          const subscription: UserSubscription = {
-            id: doc.id,
-            userId: userData.uid || userData.userId || doc.id,
-            planId: userData.planId || (userData.isSubscriber ? 'monthly' : 'free'),
-            email: userData.email || 'Sem e-mail',
-            paymentId: userData.paymentId || userData.transactionId || 'N/A',
-            paymentMethod: userData.paymentMethod || (userData.isSubscriber ? 'pix' : 'N/A'),
-            status: status,
-            startDate: userData.subscriptionStartDate || userData.createdAt || new Date().toISOString(),
-            endDate: userData.subscriptionEndDate || userData.expiresAt || new Date().toISOString(),
-            autoRenew: userData.autoRenew || false,
-            createdAt: userData.createdAt || new Date().toISOString(),
-            updatedAt: userData.updatedAt || new Date().toISOString()
-          };
-          subscriptions.push(subscription);
-        });
-        
-        // console.log(`[Actions] Encontrados ${usersSnapshot.size} usuários na coleção users`);
-      } catch (error) {
-        console.error('[Actions] Erro ao buscar da coleção users:', error);
-      }
+    try {
+      console.log('[Actions] Buscando da coleção users...');
+      const usersSnapshot = await adminDb.collection('users').get();
+
+      usersSnapshot.forEach((doc: any) => {
+        const userData = doc.data();
+
+        // Determinar status baseado em isSubscriber e subscriptionStatus
+        let status: 'active' | 'expired' | 'canceled' = 'expired';
+        if (userData.isSubscriber === true && userData.subscriptionStatus === 'active') {
+          status = 'active';
+        } else if (userData.subscriptionStatus === 'canceled') {
+          status = 'canceled';
+        }
+
+        const subscription: UserSubscription = {
+          id: doc.id,
+          userId: userData.uid || userData.userId || doc.id,
+          planId: userData.planId || (userData.isSubscriber ? 'monthly' : 'free'),
+          email: userData.email || 'Sem e-mail',
+          paymentId: userData.paymentId || userData.transactionId || 'N/A',
+          paymentMethod: userData.paymentMethod || (userData.isSubscriber ? 'pix' : 'N/A'),
+          status: status,
+          startDate: userData.subscriptionStartDate || userData.createdAt || new Date().toISOString(),
+          endDate: userData.subscriptionEndDate || userData.expiresAt || new Date().toISOString(),
+          autoRenew: userData.autoRenew || false,
+          createdAt: userData.createdAt || new Date().toISOString(),
+          updatedAt: userData.updatedAt || new Date().toISOString()
+        };
+        subscriptions.push(subscription);
+      });
+
+      console.log(`[Actions] Encontrados ${usersSnapshot.size} usuários na coleção users`);
+    } catch (error) {
+      console.error('[Actions] Erro ao buscar da coleção users:', error);
     }
 
     // 2. Buscar da coleção 'subscribers' (mesma fonte dos pagamentos)
-    if (adminDb) {
-      try {
-        const subscribersSnapshot = await adminDb.collection('subscribers').get();
-        
-        subscribersSnapshot.forEach((doc: any) => {
-          const data = doc.data();
-          const subscription: UserSubscription = {
-            id: doc.id,
-            userId: data.userId || data.customerId || '',
-            planId: data.planId || 'monthly',
-            email: data.email || data.customerEmail || '',
-            paymentId: data.paymentId || data.transactionId || '',
-            paymentMethod: data.paymentMethod || 'pix',
-            status: data.status || 'active',
-            startDate: data.startDate || data.createdAt || new Date().toISOString(),
-            endDate: data.endDate || data.expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-            autoRenew: data.autoRenew || false,
-            createdAt: data.createdAt || new Date().toISOString(),
-            updatedAt: data.updatedAt || new Date().toISOString()
-          };
-          subscriptions.push(subscription);
-        });
-        
-        // console.log(`[Actions] Encontradas ${subscribersSnapshot.size} assinaturas na coleção subscribers`);
-      } catch (error) {
-        console.error('[Actions] Erro ao buscar da coleção subscribers:', error);
-      }
+    try {
+      console.log('[Actions] Buscando da coleção subscribers...');
+      const subscribersSnapshot = await adminDb.collection('subscribers').get();
+
+      subscribersSnapshot.forEach((doc: any) => {
+        const data = doc.data();
+        const subscription: UserSubscription = {
+          id: doc.id,
+          userId: data.userId || data.customerId || '',
+          planId: data.planId || 'monthly',
+          email: data.email || data.customerEmail || '',
+          paymentId: data.paymentId || data.transactionId || '',
+          paymentMethod: data.paymentMethod || 'pix',
+          status: data.status || 'active',
+          startDate: data.startDate || data.createdAt || new Date().toISOString(),
+          endDate: data.endDate || data.expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          autoRenew: data.autoRenew || false,
+          createdAt: data.createdAt || new Date().toISOString(),
+          updatedAt: data.updatedAt || new Date().toISOString()
+        };
+        subscriptions.push(subscription);
+      });
+
+      // console.log(`[Actions] Encontradas ${subscribersSnapshot.size} assinaturas na coleção subscribers`);
+    } catch (error) {
+      console.error('[Actions] Erro ao buscar da coleção subscribers:', error);
     }
-
-    // 3. Buscar da coleção 'subscriptions' (Realtime Database - backup)
-    const adminApp = getAdminApp();
-    if (adminApp) {
-      try {
-        const rtdb = getDatabase(adminApp);
-        const subscriptionsRef = rtdb.ref('subscriptions');
-        const snapshot = await subscriptionsRef.once('value');
-        const subscriptionsData = snapshot.val();
-
-        if (subscriptionsData) {
-          const subs = Object.values(subscriptionsData) as UserSubscription[];
-          subscriptions.push(...subs);
-          // console.log(`[Actions] Encontradas ${subs.length} assinaturas no Realtime Database`);
-        }
-      } catch (error) {
-        console.error('[Actions] Erro ao buscar do Realtime Database:', error);
-      }
-    }
-
-    // console.log(`[Actions] Total de assinaturas encontradas: ${subscriptions.length}`);
-    return subscriptions;
   } catch (error) {
-    console.error('[Actions] Erro geral ao buscar assinaturas:', error);
-    return [];
+    console.error('[Actions] Erro geral ao buscar assinaturas do Firestore:', error);
   }
+
+  // 3. Buscar da coleção 'subscriptions' (Realtime Database - backup)
+  const adminApp = getAdminApp();
+  if (adminApp) {
+    try {
+      const rtdb = getDatabase(adminApp);
+      const subscriptionsRef = rtdb.ref('subscriptions');
+      const snapshot = await subscriptionsRef.once('value');
+      const subscriptionsData = snapshot.val();
+
+      if (subscriptionsData) {
+        const subs = Object.values(subscriptionsData) as UserSubscription[];
+        subscriptions.push(...subs);
+        // console.log(`[Actions] Encontradas ${subs.length} assinaturas no Realtime Database`);
+      }
+    } catch (error) {
+      console.error('[Actions] Erro ao buscar do Realtime Database:', error);
+    }
+  }
+
+  // console.log(`[Actions] Total de assinaturas encontradas: ${subscriptions.length}`);
+  return subscriptions;
 }
 
 export async function createSubscription(data: {
@@ -118,13 +121,13 @@ export async function createSubscription(data: {
 }) {
   try {
     // console.log('[Actions] Criando assinatura:', data);
-    
+
     const adminDb = getAdminDb();
     // Salvar na coleção 'users' (mesma fonte dos usuários)
     if (adminDb) {
       const usersRef = adminDb.collection('users');
       const userQuery = await usersRef.where('email', '==', data.email).get();
-      
+
       if (!userQuery.empty) {
         // Atualizar usuário existente
         const userDoc = userQuery.docs[0];
@@ -189,23 +192,23 @@ export async function createSubscription(data: {
 export async function checkUserSubscription(userId: string) {
   try {
     // console.log('[Actions] Verificando assinatura para userId:', userId);
-    
+
     const adminDb = getAdminDb();
     // Verificar na coleção 'users' (mesma fonte dos usuários)
     if (adminDb) {
       const usersRef = adminDb.collection('users');
       const userQuery = await usersRef.where('uid', '==', userId).get();
-      
+
       if (!userQuery.empty) {
         const userDoc = userQuery.docs[0];
         const userData = userDoc.data();
-        
+
         if (userData.isSubscriber === true) {
           const plan = SUBSCRIPTION_PLANS.find(p => p.id === (userData.planId || 'monthly'));
-          
-          return { 
-            success: true, 
-            isActive: true, 
+
+          return {
+            success: true,
+            isActive: true,
             subscription: {
               id: userDoc.id,
               userId: userData.uid,
@@ -225,10 +228,10 @@ export async function checkUserSubscription(userId: string) {
         }
       }
     }
-    
-    return { 
-      success: true, 
-      isActive: false, 
+
+    return {
+      success: true,
+      isActive: false,
       subscription: null,
       plan: null
     };
@@ -241,13 +244,13 @@ export async function checkUserSubscription(userId: string) {
 export async function cancelUserSubscription(subscriptionId: string) {
   try {
     // console.log('[Actions] Cancelando assinatura:', subscriptionId);
-    
+
     const adminDb = getAdminDb();
     // Cancelar na coleção 'users'
     if (adminDb) {
       const userDoc = adminDb.collection('users').doc(subscriptionId);
       const userSnapshot = await userDoc.get();
-      
+
       if (userSnapshot.exists) {
         await userDoc.update({
           isSubscriber: false,
@@ -257,12 +260,12 @@ export async function cancelUserSubscription(subscriptionId: string) {
         // console.log('[Actions] Assinatura cancelada na coleção users');
       }
     }
-    
+
     // Cancelar na coleção 'subscribers'
     if (adminDb) {
       const subscriberDoc = adminDb.collection('subscribers').doc(subscriptionId);
       const subscriberSnapshot = await subscriberDoc.get();
-      
+
       if (subscriberSnapshot.exists) {
         await subscriberDoc.update({
           status: 'canceled',
@@ -271,7 +274,7 @@ export async function cancelUserSubscription(subscriptionId: string) {
         // console.log('[Actions] Assinatura cancelada na coleção subscribers');
       }
     }
-    
+
     return { success: true, message: 'Assinatura cancelada com sucesso' };
   } catch (error: any) {
     console.error('Erro ao cancelar assinatura:', error);
@@ -283,14 +286,14 @@ export async function getAllSubscriptionsAdmin() {
   try {
     // console.log('[Actions] Buscando todas as assinaturas...');
     const subscriptions = await getAllSubscriptionsFromUnifiedSource();
-    
+
     const subscriptionsWithPlans = subscriptions.map(sub => ({
       ...sub,
       plan: SUBSCRIPTION_PLANS.find(p => p.id === sub.planId)
     }));
-    
+
     // console.log('[Actions] Retornando assinaturas com planos:', subscriptionsWithPlans.length);
-    
+
     return { success: true, subscriptions: subscriptionsWithPlans };
   } catch (error: any) {
     console.error('[Actions] Erro ao buscar assinaturas:', error);
@@ -302,12 +305,12 @@ export async function cleanupExpiredSubscriptions() {
   try {
     // console.log('[Actions] Iniciando cleanup de assinaturas expiradas...');
     let expiredCount = 0;
-    
+
     const adminDb = getAdminDb();
     // Cleanup na coleção 'users'
     if (adminDb) {
       const usersSnapshot = await adminDb.collection('users').where('isSubscriber', '==', true).get();
-      
+
       for (const doc of usersSnapshot.docs) {
         const userData = doc.data();
         if (userData.subscriptionEndDate) {
@@ -323,11 +326,11 @@ export async function cleanupExpiredSubscriptions() {
         }
       }
     }
-    
+
     // Cleanup na coleção 'subscribers'
     if (adminDb) {
       const subscribersSnapshot = await adminDb.collection('subscribers').where('status', '==', 'active').get();
-      
+
       for (const doc of subscribersSnapshot.docs) {
         const data = doc.data();
         if (data.endDate) {
@@ -342,7 +345,7 @@ export async function cleanupExpiredSubscriptions() {
         }
       }
     }
-    
+
     // console.log(`[Actions] Cleanup concluído: ${expiredCount} assinaturas expiradas`);
     return { success: true, cleanupCount: expiredCount };
   } catch (error: any) {
@@ -355,54 +358,54 @@ export async function deleteTestSubscriptions() {
   try {
     // console.log('[Actions] Iniciando exclusão de assinaturas de teste...');
     let deletedCount = 0;
-    
+
     const adminDb = getAdminDb();
     // Excluir da coleção 'users'
     if (adminDb) {
       const usersSnapshot = await adminDb.collection('users').where('isSubscriber', '==', true).get();
-      
+
       for (const doc of usersSnapshot.docs) {
         const userData = doc.data();
         const email = userData.email?.toLowerCase() || '';
-        
+
         // Verificar se é uma assinatura de teste
-        if (email.includes('test') || 
-            email.includes('@test.com') ||
-            email.includes('exemplo') ||
-            email.includes('demo') ||
-            userData.paymentId?.includes('test') ||
-            userData.planId?.includes('test')) {
-          
+        if (email.includes('test') ||
+          email.includes('@test.com') ||
+          email.includes('exemplo') ||
+          email.includes('demo') ||
+          userData.paymentId?.includes('test') ||
+          userData.planId?.includes('test')) {
+
           await doc.ref.delete();
           deletedCount++;
           // console.log(`[Actions] Excluída assinatura de teste: ${email}`);
         }
       }
     }
-    
+
     // Excluir da coleção 'subscribers'
     if (adminDb) {
       const subscribersSnapshot = await adminDb.collection('subscribers').get();
-      
+
       for (const doc of subscribersSnapshot.docs) {
         const data = doc.data();
         const email = data.email?.toLowerCase() || '';
-        
+
         // Verificar se é uma assinatura de teste
-        if (email.includes('test') || 
-            email.includes('@test.com') ||
-            email.includes('exemplo') ||
-            email.includes('demo') ||
-            data.paymentId?.includes('test') ||
-            data.planId?.includes('test')) {
-          
+        if (email.includes('test') ||
+          email.includes('@test.com') ||
+          email.includes('exemplo') ||
+          email.includes('demo') ||
+          data.paymentId?.includes('test') ||
+          data.planId?.includes('test')) {
+
           await doc.ref.delete();
           deletedCount++;
           // console.log(`[Actions] Excluída assinatura de teste: ${email}`);
         }
       }
     }
-    
+
     // console.log(`[Actions] Exclusão concluída: ${deletedCount} assinaturas de teste excluídas`);
     return { success: true, deletedCount };
   } catch (error: any) {
@@ -437,7 +440,7 @@ export async function giftSubscriptionDays(
     if (userSnapshot.exists) {
       const userData = userSnapshot.data();
       userDocRef = userSnapshot.ref;
-      
+
       if (userData?.isSubscriber && userData?.subscriptionEndDate) {
         existingSubscription = {
           id: userSnapshot.id,
@@ -462,7 +465,7 @@ export async function giftSubscriptionDays(
     if (existingSubscription) {
       // Se já tem assinatura ativa, adicionar dias à data de expiração
       const currentEndDate = new Date(existingSubscription.endDate);
-      
+
       // Se a assinatura já expirou, começar de hoje
       if (currentEndDate < now) {
         newEndDate = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
@@ -539,9 +542,9 @@ export async function giftSubscriptionDays(
 
     console.log(`[Actions] ✅ Presenteado com sucesso: ${email} - ${days} dias até ${newEndDate.toLocaleDateString('pt-BR')}`);
 
-    return { 
-      success: true, 
-      subscription: updatedSubscription 
+    return {
+      success: true,
+      subscription: updatedSubscription
     };
   } catch (error: any) {
     console.error('Erro ao presentear assinatura:', error);

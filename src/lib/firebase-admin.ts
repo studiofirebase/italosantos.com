@@ -172,12 +172,19 @@ export function initializeFirebaseAdmin() {
         const localServiceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
         console.log('[Firebase Admin] 📄 Usando service_account.json local - project:', localServiceAccount.project_id);
 
+        // Obter storage bucket
+        const storageBucket = process.env.FIREBASE_STORAGE_BUCKET ||
+          process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+          'facepass-afhid.firebasestorage.app';
+
         app = initializeApp({
           credential: cert(localServiceAccount),
           databaseURL: dbUrl,
-          projectId: localServiceAccount.project_id
+          projectId: localServiceAccount.project_id,
+          storageBucket: storageBucket
         });
         console.log('[Firebase Admin] ✅ Firebase Admin SDK initialized successfully with service_account.json');
+        console.log('[Firebase Admin] 📦 Storage Bucket:', storageBucket);
         return app;
       } else {
         console.log('[Firebase Admin] ⚠️ service_account.json não encontrado em:', serviceAccountPath);
@@ -194,12 +201,20 @@ export function initializeFirebaseAdmin() {
     if (serviceAccount) {
       if (serviceAccount.private_key.includes('-----BEGIN PRIVATE KEY-----') &&
         serviceAccount.private_key.includes('-----END PRIVATE KEY-----')) {
-        console.log('[Firebase Admin] � Usando credenciais de variáveis de ambiente');
+        console.log('[Firebase Admin] 🔐 Usando credenciais de variáveis de ambiente');
+
+        // Obter storage bucket
+        const storageBucket = process.env.FIREBASE_STORAGE_BUCKET ||
+          process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+          'facepass-afhid.firebasestorage.app';
+
         app = initializeApp({
           credential: cert(serviceAccount as any),
           databaseURL: dbUrl,
-          projectId: serviceAccount.project_id
+          projectId: serviceAccount.project_id,
+          storageBucket: storageBucket
         });
+        console.log('[Firebase Admin] 📦 Storage Bucket:', storageBucket);
       } else {
         console.error('[Firebase Admin] ❌ Chave privada incompleta/inválida nas variáveis.');
         if (process.env.NODE_ENV === 'development') {
@@ -212,11 +227,19 @@ export function initializeFirebaseAdmin() {
     // 🔹 PRIORIDADE 3: Apenas em ambientes GCP (Cloud Run tem K_SERVICE env var)
     if (!app && process.env.K_SERVICE) {
       console.log('[Firebase Admin] 🔐 Usando Application Default Credentials (ambiente GCP detectado)');
+
+      // Obter storage bucket
+      const storageBucket = process.env.FIREBASE_STORAGE_BUCKET ||
+        process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+        'facepass-afhid.firebasestorage.app';
+
       app = initializeApp({
         credential: applicationDefault(),
         projectId: process.env.FIREBASE_PROJECT_ID,
         databaseURL: dbUrl,
+        storageBucket: storageBucket
       } as any);
+      console.log('[Firebase Admin] 📦 Storage Bucket:', storageBucket);
     }
 
     // Se chegou aqui sem app, falhou
@@ -279,6 +302,16 @@ export function getAdminStorage() {
       console.error('[Admin SDK] Cannot get Storage: Admin app not initialized');
       return null;
     }
+
+    // Obter bucket name de variáveis de ambiente ou do firebase-config.json
+    const bucketName = process.env.FIREBASE_STORAGE_BUCKET ||
+      process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET ||
+      'facepass-afhid.firebasestorage.app';
+
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[Admin SDK] Storage bucket configurado:', bucketName);
+    }
+
     return getStorage(app);
   } catch (error) {
     console.error('[Admin SDK] Error getting admin storage:', error);

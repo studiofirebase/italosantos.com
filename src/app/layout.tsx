@@ -105,7 +105,7 @@ export default function RootLayout({
           {`
             window.fbAsyncInit = function() {
               FB.init({
-                appId      : '1029313609296207',
+                appId      : '${process.env.NEXT_PUBLIC_FACEBOOK_APP_ID || '1029313609296207'}',
                 cookie     : true,
                 xfbml      : true,
                 version    : 'v18.0'
