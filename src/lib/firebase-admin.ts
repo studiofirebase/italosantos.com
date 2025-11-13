@@ -164,21 +164,28 @@ export function initializeFirebaseAdmin() {
       const path = require('path');
       const serviceAccountPath = path.join(process.cwd(), 'service_account.json');
 
+      console.log('[Firebase Admin] 🔍 Procurando service_account.json em:', serviceAccountPath);
+      console.log('[Firebase Admin] 🔍 process.cwd():', process.cwd());
+
       if (fs.existsSync(serviceAccountPath)) {
-        console.log('[Firebase Admin] 📄 Usando service_account.json local');
+        console.log('[Firebase Admin] ✅ service_account.json encontrado!');
         const localServiceAccount = JSON.parse(fs.readFileSync(serviceAccountPath, 'utf8'));
+        console.log('[Firebase Admin] 📄 Usando service_account.json local - project:', localServiceAccount.project_id);
+
         app = initializeApp({
           credential: cert(localServiceAccount),
           databaseURL: dbUrl,
           projectId: localServiceAccount.project_id
         });
-        console.log('[Firebase Admin] ✅ Firebase Admin SDK initialized successfully');
+        console.log('[Firebase Admin] ✅ Firebase Admin SDK initialized successfully with service_account.json');
         return app;
       } else {
-        console.log('[Firebase Admin] ℹ️ service_account.json não encontrado. Tentando variáveis de ambiente...');
+        console.log('[Firebase Admin] ⚠️ service_account.json não encontrado em:', serviceAccountPath);
+        console.log('[Firebase Admin] ℹ️ Tentando variáveis de ambiente...');
       }
     } catch (error) {
       console.error('[Firebase Admin] ❌ Erro ao carregar service_account.json:', error);
+      console.error('[Firebase Admin] ❌ Stack trace:', (error as Error).stack);
     }
 
     // 🔹 PRIORIDADE 2: Tentar credenciais de variáveis de ambiente

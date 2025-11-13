@@ -131,7 +131,7 @@ export async function GET(request: NextRequest) {
         let allUsers: any[] = [];
         let paginationToken: string | undefined;
         let requestCount = 0;
-        const maxRequests = 3; // Máximo 3 requisições (300 tweets) para economizar rate limit
+        const maxRequests = 1; // TEMPORÁRIO: 1 requisição (100 tweets) - Rate limit atingido!
         
         console.log('[HYBRID-VIDEOS] 🔄 Buscando tweets com paginação...');
 

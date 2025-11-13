@@ -24,15 +24,13 @@ const PixPaymentModal = dynamic(() => import('@/components/pix-payment-modal'), 
 const GPayPaymentModal = dynamic(() => import('@/components/gpay-payment-modal'), { ssr: false });
 const ApplePayPaymentModal = dynamic(() => import('@/components/applepay-payment-modal'), { ssr: false });
 const LoginTypeModal = dynamic(() => import('@/components/login-type-modal'), { ssr: false });
+const PayPalV6Buttons = dynamic(() => import('@/components/paypal-v6-buttons'), { ssr: false, loading: () => <div className="w-full h-full flex items-center justify-center"><Loader2 className="h-6 w-6 animate-spin" /></div> });
 // Use relative import to avoid occasional path alias resolution glitches during typecheck
 type SignUpTypeModalProps = { isOpen: boolean; onClose: () => void };
 const SignUpTypeModal = dynamic<SignUpTypeModalProps>(
     () => import('../components/signup-type-modal'),
     { ssr: false }
 );
-
-// Split PayPal widget (heavy SDK)
-const PayPalButton = dynamic(() => import('@/components/paypal-button-enhanced'), { ssr: false, loading: () => <div className="w-full h-full bg-muted rounded" /> });
 
 export default function Home() {
     const { toast } = useToast();
@@ -401,24 +399,33 @@ export default function Home() {
                                     <span className="text-lg sm:text-xl md:text-2xl font-normal align-top ml-1">{paymentInfo.symbol}</span>
                                 </p>
                             )}
-                            <div className="w-full h-14 sm:h-16 md:h-20 mt-3 sm:mt-4">
+                            <div className="w-full mt-3 sm:mt-4">
                                 {authStatus === 'checking' ? (
-                                    <div className="w-full h-full bg-muted rounded-lg flex items-center justify-center border border-primary/20">
+                                    <div className="w-full h-14 sm:h-16 md:h-20 bg-muted rounded-lg flex items-center justify-center border border-primary/20">
                                         <Loader2 className="h-3 w-3 sm:h-4 sm:w-4 md:h-5 md:w-5 animate-spin text-primary" />
                                         <span className="ml-2 text-muted-foreground text-xs sm:text-sm md:text-base">Verificando...</span>
                                     </div>
                                 ) : authStatus === 'authenticated' ? (
-                                    <div className="w-full h-full flex items-center justify-center">
-                                        <PayPalButton
-                                            onSuccess={handlePaymentSuccess}
+                                    <div className="w-full">
+                                        <PayPalV6Buttons
                                             amount={parseFloat(paymentInfo.value)}
                                             currency={paymentInfo.currency}
                                             description="Assinatura Mensal Premium"
+                                            isSubscription={true}
+                                            onSuccess={handlePaymentSuccess}
+                                            onError={(error) => {
+                                                console.error('[Payment Error]', error);
+                                                toast({
+                                                    variant: 'destructive',
+                                                    title: 'Erro no Pagamento',
+                                                    description: 'Não foi possível processar o pagamento. Tente novamente.',
+                                                });
+                                            }}
                                         />
                                     </div>
                                 ) : (
                                     <button
-                                        className="w-full h-full bg-blue-500 rounded-lg flex items-center justify-center shadow-lg transition-transform hover:scale-[1.01] active:scale-[0.99]"
+                                        className="w-full h-14 sm:h-16 md:h-20 bg-blue-500 rounded-lg flex items-center justify-center shadow-lg transition-transform hover:scale-[1.01] active:scale-[0.99]"
                                         onClick={handlePayPalClick}
                                         aria-label="Pagar com PayPal"
                                     >
@@ -426,7 +433,7 @@ export default function Home() {
                                             <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-md flex items-center justify-center">
                                                 <span className="text-blue-500 font-bold text-sm sm:text-base">P</span>
                                             </div>
-                                            <span className="text-white font-semibold text-sm sm:text-base md:text-lg">Pay with PayPal</span>
+                                            <span className="text-white font-semibold text-sm sm:text-base md:text-lg">Assinar Agora</span>
                                         </div>
                                     </button>
                                 )}

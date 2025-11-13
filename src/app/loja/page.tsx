@@ -238,6 +238,39 @@ function LojaPageContent() {
     fetchUserPurchases();
   }, [user?.uid]);
 
+  // Carregar script do PayPal Cart
+  useEffect(() => {
+    // Verificar se o script já foi carregado
+    if (document.getElementById('paypal-cart-script')) {
+      return;
+    }
+
+    // Criar e adicionar o script
+    const script = document.createElement('script');
+    script.id = 'paypal-cart-script';
+    script.src = 'https://www.paypalobjects.com/ncp/cart/cart.js';
+    script.setAttribute('data-merchant-id', '4N9NF77PTG5TS');
+    script.async = true;
+
+    script.onload = () => {
+      console.log('[PayPal Cart] Script carregado com sucesso');
+    };
+
+    script.onerror = () => {
+      console.error('[PayPal Cart] Erro ao carregar script');
+    };
+
+    document.body.appendChild(script);
+
+    // Cleanup: remover script ao desmontar
+    return () => {
+      const existingScript = document.getElementById('paypal-cart-script');
+      if (existingScript) {
+        existingScript.remove();
+      }
+    };
+  }, []);
+
   const handleProductClick = (product: Product) => {
     if (!user) {
       toast({ title: "Login necessário", description: "Você precisa estar logado para visualizar produtos.", variant: "destructive" });

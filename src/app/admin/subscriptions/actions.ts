@@ -5,30 +5,40 @@ import { getDatabase } from 'firebase-admin/database';
 import { UserSubscription, SubscriptionPlan, SUBSCRIPTION_PLANS } from '@/lib/subscription-manager';
 
 // Função unificada para buscar todas as assinaturas usando a mesma fonte de dados
+// MODIFICADO: Agora busca TODOS os usuários cadastrados, não apenas assinantes
 async function getAllSubscriptionsFromUnifiedSource(): Promise<UserSubscription[]> {
   const subscriptions: UserSubscription[] = [];
 
   try {
-    // console.log('[Actions] Buscando assinaturas de fonte unificada...');
+    // console.log('[Actions] Buscando TODOS os usuários cadastrados...');
 
     const adminDb = getAdminDb();
-    // 1. Buscar da coleção 'users' onde isSubscriber = true (mesma fonte dos usuários)
+    // 1. Buscar TODOS os usuários da coleção 'users' (não apenas isSubscriber = true)
     if (adminDb) {
       try {
-        const usersSnapshot = await adminDb.collection('users').where('isSubscriber', '==', true).get();
+        const usersSnapshot = await adminDb.collection('users').get();
         
         usersSnapshot.forEach((doc: any) => {
           const userData = doc.data();
+          
+          // Determinar status baseado em isSubscriber e subscriptionStatus
+          let status: 'active' | 'expired' | 'canceled' = 'expired';
+          if (userData.isSubscriber === true && userData.subscriptionStatus === 'active') {
+            status = 'active';
+          } else if (userData.subscriptionStatus === 'canceled') {
+            status = 'canceled';
+          }
+          
           const subscription: UserSubscription = {
             id: doc.id,
             userId: userData.uid || userData.userId || doc.id,
-            planId: userData.planId || 'monthly',
-            email: userData.email,
-            paymentId: userData.paymentId || userData.transactionId || doc.id,
-            paymentMethod: userData.paymentMethod || 'pix',
-            status: userData.subscriptionStatus || 'active',
+            planId: userData.planId || (userData.isSubscriber ? 'monthly' : 'free'),
+            email: userData.email || 'Sem e-mail',
+            paymentId: userData.paymentId || userData.transactionId || 'N/A',
+            paymentMethod: userData.paymentMethod || (userData.isSubscriber ? 'pix' : 'N/A'),
+            status: status,
             startDate: userData.subscriptionStartDate || userData.createdAt || new Date().toISOString(),
-            endDate: userData.subscriptionEndDate || userData.expiresAt || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+            endDate: userData.subscriptionEndDate || userData.expiresAt || new Date().toISOString(),
             autoRenew: userData.autoRenew || false,
             createdAt: userData.createdAt || new Date().toISOString(),
             updatedAt: userData.updatedAt || new Date().toISOString()
@@ -36,7 +46,7 @@ async function getAllSubscriptionsFromUnifiedSource(): Promise<UserSubscription[
           subscriptions.push(subscription);
         });
         
-        // console.log(`[Actions] Encontradas ${usersSnapshot.size} assinaturas na coleção users`);
+        // console.log(`[Actions] Encontrados ${usersSnapshot.size} usuários na coleção users`);
       } catch (error) {
         console.error('[Actions] Erro ao buscar da coleção users:', error);
       }

@@ -45,39 +45,46 @@ export class FacebookSDKIntegration {
      * Inicializa o Facebook SDK carregando o script
      */
     static async initialize(): Promise<void> {
-        if (this.isInitialized) return;
-        if (typeof window === 'undefined') return;
+        if (typeof window === 'undefined') {
+            console.error('[Facebook SDK] Window não disponível');
+            return;
+        }
 
-        return new Promise((resolve) => {
-            window.fbAsyncInit = () => {
-                try {
-                    // @ts-ignore
-                    FB.init({
-                        appId: this.appId,
-                        cookie: true,
-                        xfbml: true,
-                        version: 'v23.0',
-                    });
+        // Se o FB já existe e está pronto, apenas marcar como inicializado
+        if (window.FB) {
+            console.log('[Facebook SDK] FB já está carregado e pronto para uso');
+            this.isInitialized = true;
+            return Promise.resolve();
+        }
 
-                    // @ts-ignore
-                    FB.AppEvents.logPageView();
+        console.log('[Facebook SDK] Aguardando Facebook SDK carregar...');
+        console.log('[Facebook SDK] Verificando se script facebook-jssdk existe:', !!document.getElementById('facebook-jssdk'));
+
+        // Aguardar o SDK carregar (já está sendo carregado pelo layout.tsx)
+        return new Promise((resolve, reject) => {
+            let attempts = 0;
+            const maxAttempts = 100; // 100 tentativas = 10 segundos
+
+            const checkFB = setInterval(() => {
+                attempts++;
+
+                if (attempts % 10 === 0) {
+                    console.log(`[Facebook SDK] Tentativa ${attempts}/${maxAttempts} - FB disponível: ${!!window.FB}`);
+                }
+
+                if (window.FB) {
+                    console.log('[Facebook SDK] ✅ FB carregado com sucesso após', attempts * 100, 'ms');
+                    clearInterval(checkFB);
                     this.isInitialized = true;
                     resolve();
-                } catch (error) {
-                    console.error('Erro ao inicializar Facebook SDK:', error);
-                    resolve();
+                } else if (attempts >= maxAttempts) {
+                    console.error('[Facebook SDK] ❌ Timeout ao aguardar SDK carregar após', maxAttempts * 100, 'ms');
+                    console.error('[Facebook SDK] Script existe:', !!document.getElementById('facebook-jssdk'));
+                    console.error('[Facebook SDK] window.FB:', window.FB);
+                    clearInterval(checkFB);
+                    reject(new Error('Facebook SDK não carregou a tempo. Verifique sua conexão e recarregue a página.'));
                 }
-            };
-
-            // Carregar o script do Facebook SDK
-            if (!document.getElementById('facebook-jssdk')) {
-                const script = document.createElement('script');
-                script.id = 'facebook-jssdk';
-                script.src = 'https://connect.facebook.net/pt_BR/sdk.js';
-                script.async = true;
-                script.defer = true;
-                document.head.appendChild(script);
-            }
+            }, 100); // Verificar a cada 100ms
         });
     }
 
@@ -89,8 +96,14 @@ export class FacebookSDKIntegration {
 
         return new Promise((resolve, reject) => {
             try {
+                // Verificar se o FB está disponível
+                if (typeof window === 'undefined' || !window.FB) {
+                    reject(new Error('Facebook SDK não está carregado'));
+                    return;
+                }
+
                 // @ts-ignore
-                FB.login(
+                window.FB.login(
                     (response: FacebookAuthResponse) => {
                         if (response.status === 'connected') {
                             resolve(response);
@@ -133,12 +146,18 @@ export class FacebookSDKIntegration {
 
         return new Promise((resolve) => {
             try {
-                // @ts-ignore
-                FB.getLoginStatus((response: FacebookAuthResponse) => {
+                if (typeof window === 'undefined' || !window.FB) {
+                    console.error('[Facebook SDK] FB não disponível em getLoginStatus');
+                    resolve({ status: 'unknown' });
+                    return;
+                }
+
+                window.FB.getLoginStatus((response: FacebookAuthResponse) => {
+                    console.log('[Facebook SDK] Login status:', response);
                     resolve(response);
                 });
             } catch (error) {
-                console.error('Erro ao obter status de login:', error);
+                console.error('[Facebook SDK] Erro ao obter status de login:', error);
                 resolve({ status: 'unknown' });
             }
         });
@@ -152,21 +171,27 @@ export class FacebookSDKIntegration {
 
         return new Promise((resolve) => {
             try {
-                // @ts-ignore
-                FB.api(
+                if (typeof window === 'undefined' || !window.FB) {
+                    console.error('[Facebook SDK] FB não disponível em getUserInfo');
+                    resolve(null);
+                    return;
+                }
+
+                window.FB.api(
                     '/me',
                     { fields: 'id,name,email,picture' },
                     (response: any) => {
                         if (response.error) {
-                            console.error('Erro ao obter informações do usuário:', response.error);
+                            console.error('[Facebook SDK] Erro ao obter informações do usuário:', response.error);
                             resolve(null);
                         } else {
+                            console.log('[Facebook SDK] User info:', response);
                             resolve(response as FacebookUser);
                         }
                     }
                 );
             } catch (error) {
-                console.error('Erro ao buscar dados do usuário:', error);
+                console.error('[Facebook SDK] Erro ao buscar dados do usuário:', error);
                 resolve(null);
             }
         });
@@ -212,20 +237,28 @@ export class FacebookSDKIntegration {
 
         return new Promise((resolve, reject) => {
             try {
-                // @ts-ignore
-                FB.api(
+                if (typeof window === 'undefined' || !window.FB) {
+                    console.error('[Facebook SDK] FB não disponível em api');
+                    reject(new Error('Facebook SDK não disponível'));
+                    return;
+                }
+
+                window.FB.api(
                     path,
                     method,
                     params || {},
                     (response: any) => {
                         if (response.error) {
+                            console.error(`[Facebook SDK] Erro na API ${path}:`, response.error);
                             reject(response.error);
                         } else {
+                            console.log(`[Facebook SDK] Resposta da API ${path}:`, response);
                             resolve(response);
                         }
                     }
                 );
             } catch (error) {
+                console.error(`[Facebook SDK] Erro ao chamar API ${path}:`, error);
                 reject(error);
             }
         });

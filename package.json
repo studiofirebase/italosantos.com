@@ -47,7 +47,7 @@
     "@dataconnect/generated": "file:src/dataconnect-generated",
     "@genkit-ai/ai": "^1.21.0",
     "@genkit-ai/core": "^1.21.0",
-    "@genkit-ai/firebase": "^1.15.5",
+    "@genkit-ai/firebase": "^1.22.0",
     "@genkit-ai/googleai": "^1.21.0",
     "@google-pay/button-react": "^3.1.0",
     "@mercadopago/sdk-react": "^0.0.19",

@@ -1,8 +1,10 @@
 import { z } from 'zod';
 import { defineFlow } from '@genkit-ai/core';
-import { generate } from '@genkit-ai/ai/generator';
+import { generate } from '@genkit-ai/ai';
 import { gemini15Flash } from '@genkit-ai/googleai';
+import { enableFirebaseTelemetry } from '@genkit-ai/firebase';
 
+enableFirebaseTelemetry();
 export const suggestionFlow = defineFlow(
   {
     name: 'suggestionFlow',

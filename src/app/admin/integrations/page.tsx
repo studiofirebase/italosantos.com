@@ -18,6 +18,9 @@ import { MercadoPagoIcon } from '@/components/icons/MercadoPagoIcon';
 // import FirebasePhoneAuthWidget from "@/components/admin/FirebasePhoneAuthWidget";
 // import FirebaseUiDemo from "@/components/admin/FirebaseUiDemo";
 import { getEndpoint, openOAuthWindow, postLogout } from "@/lib/integrations";
+import { metaSDK } from "@/services/meta-sdk-integration";
+import { getAuth } from "firebase/auth";
+import { app } from "@/lib/firebase";
 
 type Integration = 'twitter' | 'instagram' | 'facebook' | 'paypal' | 'mercadopago';
 
@@ -38,6 +41,122 @@ export default function AdminIntegrationsPage() {
     mercadopago: true,
   });
   const [showTwitterSettings, setShowTwitterSettings] = useState(false);
+
+  // Função auxiliar para atualizar isLoading com segurança
+  const updateIsLoading = (platform: string, value: boolean) => {
+    setIsLoading(prev => {
+      if (!prev) return { [platform]: value };
+      return { ...prev, [platform]: value };
+    });
+  };
+
+  // Conectar Facebook via popup do SDK da Meta
+  const handleFacebookConnect = async () => {
+    updateIsLoading('facebook', true);
+
+    try {
+      console.log('[Facebook] Iniciando login via popup...');
+
+      // Obter perfil via popup
+      const profile = await metaSDK.loginWithFacebook();
+      console.log('[Facebook] Perfil coletado:', profile);
+
+      // Obter usuário atual autenticado no Firebase
+      const auth = getAuth(app);
+      const currentUser = auth.currentUser;
+
+      if (!currentUser) {
+        throw new Error('Usuário não autenticado. Faça login primeiro.');
+      }
+
+      // Salvar perfil no Firestore
+      const response = await fetch('/api/admin/meta/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser.uid,
+          profile: profile,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Erro ao salvar perfil');
+      }
+
+      setIntegrations(prev => ({ ...prev, facebook: true }));
+
+      toast({
+        title: "Facebook conectado!",
+        description: `Bem-vindo, ${profile.name}! Seus dados foram salvos.`,
+      });
+
+    } catch (error) {
+      console.error('[Facebook] Erro:', error);
+      toast({
+        variant: 'destructive',
+        title: "Erro ao conectar",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+      });
+    } finally {
+      updateIsLoading('facebook', false);
+    }
+  };
+
+  // Conectar Instagram via popup do SDK da Meta
+  const handleInstagramConnect = async () => {
+    updateIsLoading('instagram', true);
+
+    try {
+      console.log('[Instagram] Iniciando login via popup...');
+
+      // Obter perfil via popup
+      const profile = await metaSDK.loginWithInstagram();
+      console.log('[Instagram] Perfil coletado:', profile);
+
+      // Obter usuário atual autenticado no Firebase
+      const auth = getAuth(app);
+      const currentUser = auth.currentUser;
+
+      if (!currentUser) {
+        throw new Error('Usuário não autenticado. Faça login primeiro.');
+      }
+
+      // Salvar perfil no Firestore
+      const response = await fetch('/api/admin/meta/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: currentUser.uid,
+          profile: profile,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Erro ao salvar perfil');
+      }
+
+      setIntegrations(prev => ({ ...prev, instagram: true }));
+
+      toast({
+        title: "Instagram conectado!",
+        description: `Bem-vindo, ${profile.name}! Seus dados foram salvos.`,
+      });
+
+    } catch (error) {
+      console.error('[Instagram] Erro:', error);
+      toast({
+        variant: 'destructive',
+        title: "Erro ao conectar",
+        description: error instanceof Error ? error.message : "Erro desconhecido",
+      });
+    } finally {
+      updateIsLoading('instagram', false);
+    }
+  };
 
   // Verificar autenticação do Twitter ao carregar
   useEffect(() => {
@@ -112,6 +231,20 @@ export default function AdminIntegrationsPage() {
 
   const handleConnect = (platform: Integration) => {
     console.log('🔌 [ADMIN] Conectando:', platform);
+
+    // Facebook e Instagram têm funções dedicadas com popup Meta SDK
+    if (platform === 'facebook') {
+      console.log('🔵 [ADMIN] Redirecionando para handleFacebookConnect');
+      handleFacebookConnect();
+      return;
+    }
+
+    if (platform === 'instagram') {
+      console.log('📷 [ADMIN] Redirecionando para handleInstagramConnect');
+      handleInstagramConnect();
+      return;
+    }
+
     setIsLoading(prev => ({ ...prev, [platform]: true }));
     if (platform === 'twitter') {
       (async () => {
@@ -220,11 +353,80 @@ export default function AdminIntegrationsPage() {
         }
       })();
       return;
-    }    // Fluxo padrão (Facebook, Instagram, PayPal, Mercado Pago): abrir janela OAuth no Cloud Run
+    }
+
+    // PayPal usa rota local, não Cloud Run
+    if (platform === 'paypal') {
+      console.log('💳 [ADMIN] Iniciando login PayPal...');
+      const width = 600;
+      const height = 700;
+      const left = window.top ? (window.top.outerWidth - width) / 2 : 100;
+      const top = window.top ? (window.top.outerHeight - height) / 2 : 100;
+      const features = `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes,status=no`;
+
+      try {
+        const connectUrl = `${window.location.origin}/api/admin/paypal/connect`;
+        console.log('🔗 [ADMIN] Abrindo popup PayPal:', connectUrl);
+        const w = window.open(connectUrl, 'paypal_oauth', features);
+
+        if (!w) {
+          toast({
+            variant: 'destructive',
+            title: 'Popup bloqueado',
+            description: 'Permita popups para conectar sua conta PayPal.'
+          });
+          updateIsLoading(platform, false);
+          return;
+        }
+
+        const onMessage = (event: MessageEvent) => {
+          if (event.origin !== window.location.origin) return;
+          const data = event.data || {};
+          if (!data.platform || data.platform !== 'paypal') return;
+
+          console.log('📨 [ADMIN] Mensagem recebida do PayPal:', data);
+
+          if (data.success === '1' || data.success === true || data.connected === '1' || data.connected === true) {
+            toast({
+              title: "PayPal conectado!",
+              description: "Sua conta PayPal foi conectada com sucesso.",
+            });
+            setIntegrations(prev => ({ ...prev, paypal: true }));
+          } else {
+            const err = data.error || 'Falha na autenticação PayPal.';
+            toast({ variant: 'destructive', title: 'Erro na conexão PayPal', description: String(err) });
+          }
+          updateIsLoading('paypal', false);
+          window.removeEventListener('message', onMessage);
+        };
+
+        window.addEventListener('message', onMessage);
+
+        // Timeout de segurança
+        const tid = window.setTimeout(() => {
+          window.removeEventListener('message', onMessage);
+          updateIsLoading('paypal', false);
+          console.log('⏱️ [ADMIN] Timeout na conexão PayPal');
+        }, 120000);
+
+        return;
+      } catch (error) {
+        console.error('❌ [ADMIN] Erro ao abrir popup PayPal:', error);
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao conectar PayPal',
+          description: 'Não foi possível abrir a janela de autenticação.'
+        });
+        updateIsLoading('paypal', false);
+        return;
+      }
+    }
+
+    // Fluxo padrão (Instagram, Mercado Pago): abrir janela OAuth no Cloud Run
     const w = openOAuthWindow(platform as any);
     if (!w) {
       toast({ variant: 'destructive', title: 'Popup bloqueado', description: 'Permita popups para conectar sua conta.' });
-      setIsLoading(prev => ({ ...prev, [platform]: false }));
+      updateIsLoading(platform, false);
       return;
     }
 
@@ -250,19 +452,19 @@ export default function AdminIntegrationsPage() {
             description: `${platform.charAt(0).toUpperCase() + platform.slice(1)} foi conectado à sua conta.`,
           });
         }
-        setIntegrations(prev => ({ ...prev, [platform]: true, ...(platform === 'instagram' && { facebook: true }) }));
+        setIntegrations(prev => ({ ...prev, [platform]: true }));
       } else {
         const err = data.error || 'Falha na autenticação.';
         toast({ variant: 'destructive', title: 'Erro na conexão', description: String(err) });
       }
-      setIsLoading(prev => ({ ...prev, [platform]: false }));
+      updateIsLoading(platform, false);
       window.removeEventListener('message', onMessage);
     };
     window.addEventListener('message', onMessage);
     // Timeout de segurança para não manter loading infinito caso o popup não retorne
     const tid = window.setTimeout(() => {
       window.removeEventListener('message', onMessage);
-      setIsLoading(prev => ({ ...prev, [platform]: false }));
+      updateIsLoading(platform, false);
     }, 120000);
     // Best-effort: limpar timeout quando receber mensagem
     const cleanupOnMessage = (event: MessageEvent) => {
@@ -275,21 +477,6 @@ export default function AdminIntegrationsPage() {
     window.addEventListener('message', cleanupOnMessage);
   };
 
-  const handleFacebookConnect = () => {
-    setIsLoading(prev => ({ ...prev, facebook: true }));
-
-    // @ts-ignore
-    window.FB.login(function (response) {
-      if (response.authResponse) {
-        toast({ title: "Conectado com sucesso!", description: "Sua conta do Facebook foi conectada." });
-        setIntegrations(prev => ({ ...prev, facebook: true }));
-      } else {
-        toast({ variant: 'destructive', title: "Falha no Login", description: "O login com o Facebook foi cancelado ou falhou." });
-      }
-      setIsLoading(prev => ({ ...prev, facebook: false }));
-    }, { scope: 'public_profile,email' });
-  };
-
   const handleDisconnect = async (platform: Integration) => {
     setIsLoading(prev => ({ ...prev, [platform]: true }));
     try {
@@ -300,7 +487,7 @@ export default function AdminIntegrationsPage() {
       });
       const result = await res.json();
       if (res.ok && result.success) {
-        setIntegrations(prev => ({ ...prev, [platform]: false, ...(platform === 'instagram' && { facebook: false }) }));
+        setIntegrations(prev => ({ ...prev, [platform]: false }));
         toast({ title: "Desconectado com sucesso", description: result.message });
 
         if (platform === 'twitter') {

@@ -101,7 +101,7 @@ export default function RootLayout({
         </noscript>
         
         <div id="fb-root"></div>
-        <Script id="facebook-jssdk" strategy="afterInteractive">
+        <Script id="facebook-sdk-init" strategy="afterInteractive">
           {`
             window.fbAsyncInit = function() {
               FB.init({
@@ -112,14 +112,23 @@ export default function RootLayout({
               });
               
               FB.AppEvents.logPageView();
-              
+              console.log('[Layout] Facebook SDK inicializado com sucesso');
             };
 
             (function(d, s, id){
                var js, fjs = d.getElementsByTagName(s)[0];
-               if (d.getElementById(id)) {return;}
+               if (d.getElementById(id)) {
+                 console.log('[Layout] Facebook SDK script já existe');
+                 return;
+               }
                js = d.createElement(s); js.id = id;
                js.src = "https://connect.facebook.net/en_US/sdk.js";
+               js.onload = function() {
+                 console.log('[Layout] Facebook SDK script carregado');
+               };
+               js.onerror = function() {
+                 console.error('[Layout] Erro ao carregar Facebook SDK script');
+               };
                fjs.parentNode.insertBefore(js, fjs);
              }(document, 'script', 'facebook-jssdk'));
           `}

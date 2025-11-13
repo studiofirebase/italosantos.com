@@ -21,15 +21,86 @@ export default function SignUpTypeModal({ isOpen, onClose }: SignUpTypeModalProp
 
     if (!isOpen) return null;
 
+    // Função para gerar email aleatório se não disponível
+    function generateRandomEmail(): string {
+        const randomId = Math.random().toString(36).substring(2, 10);
+        const timestamp = Date.now().toString(36);
+        return `user_${randomId}${timestamp}@italosantos.com`;
+    }
+
+    // Função para salvar dados do usuário no Firestore
+    async function saveUserProfile(userId: string, userData: {
+        displayName: string;
+        email: string;
+        photoURL: string | null;
+        provider: string;
+    }) {
+        try {
+            const { getFirestore, doc, setDoc, serverTimestamp } = await import('firebase/firestore');
+            const { app } = await import('@/lib/firebase');
+            const db = getFirestore(app);
+
+            const userRef = doc(db, 'users', userId);
+            await setDoc(userRef, {
+                displayName: userData.displayName,
+                email: userData.email,
+                photoURL: userData.photoURL || '',
+                provider: userData.provider,
+                createdAt: serverTimestamp(),
+                updatedAt: serverTimestamp(),
+            }, { merge: true });
+
+            console.log('[SignUp] Perfil salvo no Firestore:', userData);
+        } catch (error) {
+            console.error('[SignUp] Erro ao salvar perfil:', error);
+        }
+    }
+
     async function signInWithGoogle() {
         try {
             setLoading('google');
-            await signInWithPopup(auth, new GoogleAuthProvider());
+            const provider = new GoogleAuthProvider();
+            // Solicitar escopo de email e profile
+            provider.addScope('email');
+            provider.addScope('profile');
+
+            const result = await signInWithPopup(auth, provider);
+            const user = result.user;
+
+            // Coletar informações do usuário
+            const displayName = user.displayName || user.email?.split('@')[0] || 'Usuário Google';
+            const email = user.email || generateRandomEmail();
+            const photoURL = user.photoURL;
+
+            console.log('[SignUp Google] Dados coletados:', {
+                displayName,
+                email,
+                photoURL,
+                uid: user.uid
+            });
+
+            // Salvar perfil no Firestore
+            await saveUserProfile(user.uid, {
+                displayName,
+                email,
+                photoURL,
+                provider: 'google'
+            });
+
             try { localStorage.setItem('isAuthenticated', 'true'); } catch { }
-            toast({ title: 'Conectado com Google' });
+            
+            toast({ 
+                title: 'Conectado com Google',
+                description: `Bem-vindo, ${displayName}!`
+            });
             onClose();
         } catch (e: any) {
-            toast({ variant: 'destructive', title: 'Falha no login com Google', description: e?.message || 'Erro desconhecido' });
+            console.error('[SignUp Google] Erro:', e);
+            toast({ 
+                variant: 'destructive', 
+                title: 'Falha no login com Google', 
+                description: e?.message || 'Erro desconhecido' 
+            });
         } finally {
             setLoading(null);
         }
@@ -39,13 +110,48 @@ export default function SignUpTypeModal({ isOpen, onClose }: SignUpTypeModalProp
         try {
             setLoading('apple');
             const provider = new OAuthProvider('apple.com');
-            // Opcional: provider.addScope('email'); provider.addScope('name');
-            await signInWithPopup(auth, provider);
+            // Solicitar escopo de email e nome
+            provider.addScope('email');
+            provider.addScope('name');
+
+            const result = await signInWithPopup(auth, provider);
+            const user = result.user;
+
+            // Apple pode não fornecer email na segunda vez que o usuário faz login
+            // Então geramos um email se não estiver disponível
+            const displayName = user.displayName || user.email?.split('@')[0] || 'Usuário Apple';
+            const email = user.email || generateRandomEmail();
+            const photoURL = user.photoURL; // Apple geralmente não fornece foto
+
+            console.log('[SignUp Apple] Dados coletados:', {
+                displayName,
+                email,
+                photoURL,
+                uid: user.uid
+            });
+
+            // Salvar perfil no Firestore
+            await saveUserProfile(user.uid, {
+                displayName,
+                email,
+                photoURL,
+                provider: 'apple'
+            });
+
             try { localStorage.setItem('isAuthenticated', 'true'); } catch { }
-            toast({ title: 'Conectado com Apple' });
+            
+            toast({ 
+                title: 'Conectado com Apple',
+                description: `Bem-vindo, ${displayName}!`
+            });
             onClose();
         } catch (e: any) {
-            toast({ variant: 'destructive', title: 'Falha no login com Apple', description: e?.message || 'Erro desconhecido' });
+            console.error('[SignUp Apple] Erro:', e);
+            toast({ 
+                variant: 'destructive', 
+                title: 'Falha no login com Apple', 
+                description: e?.message || 'Erro desconhecido' 
+            });
         } finally {
             setLoading(null);
         }

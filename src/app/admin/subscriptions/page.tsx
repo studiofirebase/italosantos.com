@@ -417,20 +417,31 @@ export default function AdminSubscriptionsPage() {
       </Card>
 
       {/* Tabela de Assinaturas */}
-      <Card className="w-full overflow-hidden">
+      <Card className="w-full">
         <CardHeader className="px-3 sm:px-6">
-          <CardTitle className="text-base sm:text-lg">Lista de Assinaturas ({filteredSubscriptions.length})</CardTitle>
-          <CardDescription className="text-xs sm:text-sm">
-            Gerencie todas as assinaturas do sistema
-          </CardDescription>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <div>
+              <CardTitle className="text-base sm:text-lg">Lista de Assinaturas ({filteredSubscriptions.length})</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                Gerencie todas as assinaturas do sistema
+              </CardDescription>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {statusFilter === 'all' && subscriptions.length > 0 && (
+                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded">
+                  📊 Todos os {subscriptions.length} usuários cadastrados
+                </span>
+              )}
+            </div>
+          </div>
         </CardHeader>
-        <CardContent className="px-3 sm:px-6">
+        <CardContent className="px-0 sm:px-6">
           {isLoading ? (
             <div className="flex justify-center items-center py-8 sm:py-10">
               <Loader2 className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-primary" />
             </div>
           ) : filteredSubscriptions.length === 0 ? (
-            <div className="text-center py-8 sm:py-10 text-muted-foreground">
+            <div className="text-center py-8 sm:py-10 text-muted-foreground px-3">
               <Users className="h-10 w-10 sm:h-12 sm:w-12 mx-auto mb-4 opacity-50" />
               <p className="text-base sm:text-lg font-medium">Nenhuma assinatura encontrada</p>
               <p className="text-xs sm:text-sm mt-2">
@@ -441,8 +452,10 @@ export default function AdminSubscriptionsPage() {
               </p>
             </div>
           ) : (
-            <div className="overflow-x-auto -mx-3 sm:mx-0">
-              <Table className="min-w-[800px]">
+            <div className="w-full overflow-x-auto">
+              <div className="min-w-full inline-block align-middle">
+                <Table className="w-full table-auto"
+                  style={{ tableLayout: 'auto' }}>
                 <TableHeader>
                   <TableRow>
                     <TableHead className="text-xs sm:text-sm whitespace-nowrap">Assinante</TableHead>
@@ -552,6 +565,7 @@ export default function AdminSubscriptionsPage() {
                   })}
                 </TableBody>
               </Table>
+              </div>
             </div>
           )}
         </CardContent>
