@@ -1499,6 +1499,103 @@ export default function AdminSettingsPage() {
                             </div>
                         </CardContent>
                     </Card>
+
+                    {/* Twitter Feed Configuration Card */}
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Twitter className="h-5 w-5" />
+                                Configurações do Twitter Feed
+                            </CardTitle>
+                            <CardDescription>
+                                Gerencie o cache e a exibição de fotos e vídeos do Twitter
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                            <div className="p-4 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                                <h4 className="text-sm font-medium text-blue-900 dark:text-blue-100 mb-2">📊 Informações sobre o Feed:</h4>
+                                <ul className="text-xs text-blue-800 dark:text-blue-200 space-y-1">
+                                    <li>• O sistema busca suas fotos e vídeos do Twitter automaticamente</li>
+                                    <li>• Usa Inteligência Artificial (Gemini) para filtrar conteúdo pessoal</li>
+                                    <li>• Limite máximo: 25 fotos e 25 vídeos</li>
+                                    <li>• Cache é atualizado apenas quando necessário para economizar API</li>
+                                    <li>• Configure sua conta Twitter em <a href="/admin/integrations" className="underline">Integrações</a></li>
+                                </ul>
+                            </div>
+
+                            <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                    <div>
+                                        <Label className="text-base font-semibold">Cache do Twitter</Label>
+                                        <p className="text-xs text-muted-foreground mt-1">
+                                            Limpe o cache para forçar nova busca de fotos e vídeos
+                                        </p>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={async () => {
+                                            try {
+                                                const { getAuth } = await import('firebase/auth');
+                                                const { auth } = await import('@/lib/firebase');
+                                                const user = getAuth(auth).currentUser;
+                                                
+                                                if (!user) {
+                                                    toast({
+                                                        variant: 'destructive',
+                                                        title: 'Erro',
+                                                        description: 'Você precisa estar autenticado'
+                                                    });
+                                                    return;
+                                                }
+
+                                                const token = await user.getIdToken();
+                                                const response = await fetch('/api/twitter/admin/clear-cache', {
+                                                    method: 'POST',
+                                                    headers: {
+                                                        'Authorization': `Bearer ${token}`
+                                                    }
+                                                });
+
+                                                const data = await response.json();
+
+                                                if (data.success) {
+                                                    toast({
+                                                        title: 'Cache Limpo!',
+                                                        description: `Cache do Twitter limpo para @${data.username}. Próximo acesso irá buscar novos dados.`
+                                                    });
+                                                } else {
+                                                    throw new Error(data.error || 'Erro ao limpar cache');
+                                                }
+                                            } catch (error: any) {
+                                                toast({
+                                                    variant: 'destructive',
+                                                    title: 'Erro ao limpar cache',
+                                                    description: error.message
+                                                });
+                                            }
+                                        }}
+                                        className="gap-2"
+                                    >
+                                        <RefreshCw className="h-4 w-4" />
+                                        Limpar Cache
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <div className="mt-6 p-4 bg-purple-50 dark:bg-purple-950/20 border border-purple-200 dark:border-purple-800 rounded-lg">
+                                <h4 className="text-sm font-medium text-purple-900 dark:text-purple-100 mb-2">🤖 Como funciona o filtro AI:</h4>
+                                <ul className="text-xs text-purple-800 dark:text-purple-200 space-y-1">
+                                    <li>• Busca seus tweets mais recentes do Twitter</li>
+                                    <li>• Remove replies, retweets e conteúdo de terceiros</li>
+                                    <li>• Usa Gemini AI para identificar conteúdo pessoal (selfies, vídeos onde você aparece)</li>
+                                    <li>• Prioriza fotos e vídeos onde você está presente</li>
+                                    <li>• Exclui memes, capturas de tela e fotos de eventos genéricos</li>
+                                    <li>• Seleciona os melhores 25 itens de cada tipo</li>
+                                </ul>
+                            </div>
+                        </CardContent>
+                    </Card>
                 </TabsContent>
             </Tabs>
         </div>
