@@ -495,7 +495,10 @@ export default function AdminIntegrationsPage() {
               onDisconnect={() => handleDisconnect(data.platform as Integration)}
               onSync={data.onSync}
               syncing={isLoading[data.platform]}
-              onSettings={data.platform === 'twitter' ? () => setShowTwitterSettings(true) : undefined}
+              onSettings={data.platform === 'twitter' ? () => {
+                console.log('[INTEGRATIONS] Abrindo configurações do Twitter Bearer Token');
+                setShowTwitterSettings(true);
+              } : undefined}
             />
           );
         })}

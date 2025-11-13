@@ -45,17 +45,24 @@ export async function GET(request: NextRequest) {
 
         console.log('[HYBRID-PHOTOS] Username:', username, '| UserID salvo:', userId);
 
-        // Verificar cache no Firestore
-        const cacheDoc = await db.collection('twitter_cache').doc(username).collection('media').doc('photos').get();
+        // Verificar se deve forçar busca da API (ignorar cache)
+        const forceRefresh = request.nextUrl.searchParams.get('force') === 'true';
 
-        if (cacheDoc.exists && cacheDoc.data()?.data) {
-            console.log('[HYBRID-PHOTOS] ✅ Retornando cache (válido até logout)');
-            return NextResponse.json({
-                success: true,
-                tweets: cacheDoc.data()!.data,
-                cached: true,
-                username: username
-            });
+        // Verificar cache no Firestore (apenas se não for forçado)
+        if (!forceRefresh) {
+            const cacheDoc = await db.collection('twitter_cache').doc(username).collection('media').doc('photos').get();
+
+            if (cacheDoc.exists && cacheDoc.data()?.data) {
+                console.log('[HYBRID-PHOTOS] ✅ Retornando cache (válido até logout)');
+                return NextResponse.json({
+                    success: true,
+                    tweets: cacheDoc.data()!.data,
+                    cached: true,
+                    username: username
+                });
+            }
+        } else {
+            console.log('[HYBRID-PHOTOS] 🔄 Forçando atualização (force=true)');
         }
 
         console.log('[HYBRID-PHOTOS] ⚠️ Cache não encontrado, buscando da API...');
@@ -117,38 +124,79 @@ export async function GET(request: NextRequest) {
             console.log('[HYBRID-PHOTOS] ✅ Twitter User ID salvo:', userId);
         }
 
-        // Buscar tweets do usuário (max_results=100 para ter conteúdo suficiente)
-        // API v2: exclude=retweets,replies garante apenas conteúdo original
-        // Com 100 requisições/mês no free tier, cada busca conta como 1 requisição
-        const tweetsResponse = await fetch(
-            `https://api.twitter.com/2/users/${userId}/tweets?max_results=100&exclude=retweets,replies&expansions=attachments.media_keys,author_id&tweet.fields=created_at,text,public_metrics&media.fields=url,preview_image_url,type,media_key,width,height,alt_text,variants&user.fields=profile_image_url,username`,
-            {
+        // Buscar tweets com paginação até ter fotos suficientes
+        // API v2: max_results=100 por página (máximo permitido)
+        let allTweetsData: any[] = [];
+        let allMediaIncludes: any[] = [];
+        let allUsers: any[] = [];
+        let paginationToken: string | undefined;
+        let requestCount = 0;
+        const maxRequests = 3; // Máximo 3 requisições (300 tweets) para economizar rate limit
+        
+        console.log('[HYBRID-PHOTOS] 🔄 Buscando tweets com paginação...');
+
+        do {
+            requestCount++;
+            const url = new URL(`https://api.twitter.com/2/users/${userId}/tweets`);
+            url.searchParams.set('max_results', '100');
+            url.searchParams.set('exclude', 'retweets,replies');
+            url.searchParams.set('expansions', 'attachments.media_keys,author_id');
+            url.searchParams.set('tweet.fields', 'created_at,text,public_metrics');
+            url.searchParams.set('media.fields', 'url,preview_image_url,type,media_key,width,height,alt_text,variants');
+            url.searchParams.set('user.fields', 'profile_image_url,username');
+            
+            if (paginationToken) {
+                url.searchParams.set('pagination_token', paginationToken);
+            }
+
+            console.log(`[HYBRID-PHOTOS] 📡 Requisição ${requestCount}/${maxRequests}...`);
+
+            const tweetsResponse = await fetch(url.toString(), {
                 headers: {
                     'Authorization': `Bearer ${bearerToken}`,
                 },
+            });
+
+            if (!tweetsResponse.ok) {
+                console.error('[HYBRID-PHOTOS] Erro ao buscar tweets:', tweetsResponse.status);
+                return NextResponse.json({ error: 'Erro ao buscar tweets' }, { status: tweetsResponse.status });
             }
-        );
 
-        if (!tweetsResponse.ok) {
-            console.error('[HYBRID-PHOTOS] Erro ao buscar tweets:', tweetsResponse.status);
-            return NextResponse.json({ error: 'Erro ao buscar tweets' }, { status: tweetsResponse.status });
-        }
+            const tweetsData = await tweetsResponse.json();
+            
+            // Acumular dados de todas as páginas
+            if (tweetsData.data) {
+                allTweetsData.push(...tweetsData.data);
+            }
+            if (tweetsData.includes?.media) {
+                allMediaIncludes.push(...tweetsData.includes.media);
+            }
+            if (tweetsData.includes?.users) {
+                allUsers.push(...tweetsData.includes.users);
+            }
 
-        const tweetsData = await tweetsResponse.json();
-        const mediaIncludes = tweetsData.includes?.media || [];
-        const users = tweetsData.includes?.users || [];
+            console.log(`[HYBRID-PHOTOS] 📊 Página ${requestCount}: ${tweetsData.data?.length || 0} tweets, ${tweetsData.includes?.media?.length || 0} mídias`);
 
-        console.log('[HYBRID-PHOTOS] 📊 Total de tweets recebidos:', tweetsData.data?.length || 0);
-        console.log('[HYBRID-PHOTOS] 📊 Total de mídias incluídas:', mediaIncludes.length);
-        console.log('[HYBRID-PHOTOS] 📊 Tipos de mídia:', mediaIncludes.map((m: any) => m.type).join(', '));
+            // Verificar se há mais páginas
+            paginationToken = tweetsData.meta?.next_token;
+            
+            // Parar se conseguimos mídia suficiente ou não há mais páginas
+            if (!paginationToken || requestCount >= maxRequests) {
+                break;
+            }
+
+        } while (paginationToken && requestCount < maxRequests);
+
+        console.log('[HYBRID-PHOTOS] 📊 Total acumulado:', allTweetsData.length, 'tweets,', allMediaIncludes.length, 'mídias');
+        console.log('[HYBRID-PHOTOS] 📊 Tipos de mídia:', allMediaIncludes.map((m: any) => m.type).join(', '));
 
         type TwitterUser = { id: string; username?: string; profile_image_url?: string };
         const userMap = new Map<string, TwitterUser>(
-            users.map((u: any) => [u.id, { id: u.id, username: u.username, profile_image_url: u.profile_image_url }])
+            allUsers.map((u: any) => [u.id, { id: u.id, username: u.username, profile_image_url: u.profile_image_url }])
         );
 
         // Preparar todos os tweets com mídia para análise do Gemini
-        const allTweetsWithMedia = (tweetsData.data || []).map((tweet: any) => {
+        const allTweetsWithMedia = allTweetsData.map((tweet: any) => {
             const author = userMap.get(tweet.author_id);
             return {
                 id: tweet.id,
@@ -157,11 +205,11 @@ export async function GET(request: NextRequest) {
                 username: author?.username || 'unknown',
                 profile_image_url: author?.profile_image_url || '',
                 media: (tweet.attachments?.media_keys || []).map((key: string) => {
-                    const mediaFile = mediaIncludes.find((m: any) => m.media_key === key);
+                    const mediaFile = allMediaIncludes.find((m: any) => m.media_key === key);
                     if (!mediaFile) return null;
-                    return { 
-                        ...mediaFile, 
-                        url: mediaFile.url || mediaFile.preview_image_url 
+                    return {
+                        ...mediaFile,
+                        url: mediaFile.url || mediaFile.preview_image_url
                     };
                 }).filter(Boolean),
             };
@@ -172,7 +220,7 @@ export async function GET(request: NextRequest) {
         // Usar Gemini para filtrar inteligentemente 25 fotos pessoais
         console.log('[HYBRID-PHOTOS] 🤖 Usando Gemini para filtrar fotos pessoais...');
         const { photos, reasoning } = await filterPersonalMedia(allTweetsWithMedia, username);
-        
+
         console.log('[HYBRID-PHOTOS] ✅ Gemini filtrou', photos.length, 'fotos pessoais');
         console.log('[HYBRID-PHOTOS] 💡 Raciocínio:', reasoning);
 

@@ -45,17 +45,24 @@ export async function GET(request: NextRequest) {
 
         console.log('[HYBRID-VIDEOS] Username:', username, '| UserID salvo:', userId);
 
-        // Verificar cache no Firestore
-        const cacheDoc = await db.collection('twitter_cache').doc(username).collection('media').doc('videos').get();
+        // Verificar se deve forçar busca da API (ignorar cache)
+        const forceRefresh = request.nextUrl.searchParams.get('force') === 'true';
 
-        if (cacheDoc.exists && cacheDoc.data()?.data) {
-            console.log('[HYBRID-VIDEOS] ✅ Retornando cache (válido até logout)');
-            return NextResponse.json({
-                success: true,
-                tweets: cacheDoc.data()!.data,
-                cached: true,
-                username: username
-            });
+        // Verificar cache no Firestore (apenas se não for forçado)
+        if (!forceRefresh) {
+            const cacheDoc = await db.collection('twitter_cache').doc(username).collection('media').doc('videos').get();
+
+            if (cacheDoc.exists && cacheDoc.data()?.data) {
+                console.log('[HYBRID-VIDEOS] ✅ Retornando cache (válido até logout)');
+                return NextResponse.json({
+                    success: true,
+                    tweets: cacheDoc.data()!.data,
+                    cached: true,
+                    username: username
+                });
+            }
+        } else {
+            console.log('[HYBRID-VIDEOS] 🔄 Forçando atualização (force=true)');
         }
 
         console.log('[HYBRID-VIDEOS] ⚠️ Cache não encontrado, buscando da API...');
@@ -117,34 +124,79 @@ export async function GET(request: NextRequest) {
             console.log('[HYBRID-VIDEOS] ✅ Twitter User ID salvo:', userId);
         }
 
-        // Buscar tweets do usuário (max_results=100 para ter conteúdo suficiente)
-        // API v2: exclude=retweets,replies garante apenas conteúdo original
-        // Com 100 requisições/mês no free tier, cada busca conta como 1 requisição
-        const tweetsResponse = await fetch(
-            `https://api.twitter.com/2/users/${userId}/tweets?max_results=100&exclude=retweets,replies&expansions=attachments.media_keys,author_id&tweet.fields=created_at,text,public_metrics&media.fields=url,preview_image_url,type,media_key,width,height,alt_text,variants&user.fields=profile_image_url,username`,
-            {
+        // Buscar tweets com paginação até ter vídeos suficientes
+        // API v2: max_results=100 por página (máximo permitido)
+        let allTweetsData: any[] = [];
+        let allMediaIncludes: any[] = [];
+        let allUsers: any[] = [];
+        let paginationToken: string | undefined;
+        let requestCount = 0;
+        const maxRequests = 3; // Máximo 3 requisições (300 tweets) para economizar rate limit
+        
+        console.log('[HYBRID-VIDEOS] 🔄 Buscando tweets com paginação...');
+
+        do {
+            requestCount++;
+            const url = new URL(`https://api.twitter.com/2/users/${userId}/tweets`);
+            url.searchParams.set('max_results', '100');
+            url.searchParams.set('exclude', 'retweets,replies');
+            url.searchParams.set('expansions', 'attachments.media_keys,author_id');
+            url.searchParams.set('tweet.fields', 'created_at,text,public_metrics');
+            url.searchParams.set('media.fields', 'url,preview_image_url,type,media_key,width,height,alt_text,variants');
+            url.searchParams.set('user.fields', 'profile_image_url,username');
+            
+            if (paginationToken) {
+                url.searchParams.set('pagination_token', paginationToken);
+            }
+
+            console.log(`[HYBRID-VIDEOS] 📡 Requisição ${requestCount}/${maxRequests}...`);
+
+            const tweetsResponse = await fetch(url.toString(), {
                 headers: {
                     'Authorization': `Bearer ${bearerToken}`,
                 },
+            });
+
+            if (!tweetsResponse.ok) {
+                console.error('[HYBRID-VIDEOS] Erro ao buscar tweets:', tweetsResponse.status);
+                return NextResponse.json({ error: 'Erro ao buscar tweets' }, { status: tweetsResponse.status });
             }
-        );
 
-        if (!tweetsResponse.ok) {
-            console.error('[HYBRID-VIDEOS] Erro ao buscar tweets:', tweetsResponse.status);
-            return NextResponse.json({ error: 'Erro ao buscar tweets' }, { status: tweetsResponse.status });
-        }
+            const tweetsData = await tweetsResponse.json();
+            
+            // Acumular dados de todas as requisições
+            if (tweetsData.data && tweetsData.data.length > 0) {
+                allTweetsData.push(...tweetsData.data);
+                console.log(`[HYBRID-VIDEOS] ✅ ${tweetsData.data.length} tweets obtidos nesta página`);
+            }
+            
+            if (tweetsData.includes?.media) {
+                allMediaIncludes.push(...tweetsData.includes.media);
+            }
+            
+            if (tweetsData.includes?.users) {
+                allUsers.push(...tweetsData.includes.users);
+            }
+            
+            // Verificar se há próxima página
+            paginationToken = tweetsData.meta?.next_token;
+            
+            if (!paginationToken) {
+                console.log('[HYBRID-VIDEOS] ℹ️ Não há mais páginas disponíveis');
+                break;
+            }
+            
+        } while (paginationToken && requestCount < maxRequests);
 
-        const tweetsData = await tweetsResponse.json();
-        const mediaIncludes = tweetsData.includes?.media || [];
-        const users = tweetsData.includes?.users || [];
+        console.log(`[HYBRID-VIDEOS] 📊 Total acumulado: ${allTweetsData.length} tweets, ${allMediaIncludes.length} mídias`);
 
         type TwitterUser = { id: string; username?: string; profile_image_url?: string };
         const userMap = new Map<string, TwitterUser>(
-            users.map((u: any) => [u.id, { id: u.id, username: u.username, profile_image_url: u.profile_image_url }])
+            allUsers.map((u: any) => [u.id, { id: u.id, username: u.username, profile_image_url: u.profile_image_url }])
         );
 
         // Preparar todos os tweets com mídia para análise do Gemini
-        const allTweetsWithMedia = (tweetsData.data || []).map((tweet: any) => {
+        const allTweetsWithMedia = allTweetsData.map((tweet: any) => {
             const author = userMap.get(tweet.author_id);
             return {
                 id: tweet.id,
@@ -153,7 +205,7 @@ export async function GET(request: NextRequest) {
                 username: author?.username || 'unknown',
                 profile_image_url: author?.profile_image_url || '',
                 media: (tweet.attachments?.media_keys || []).map((key: string) => {
-                    return mediaIncludes.find((m: any) => m.media_key === key);
+                    return allMediaIncludes.find((m: any) => m.media_key === key);
                 }).filter(Boolean),
             };
         }).filter((tweet: any) => tweet.media.length > 0);

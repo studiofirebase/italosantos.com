@@ -40,6 +40,11 @@ export default function IntegrationCard({
 
   const buttonClass = `w-32 ${brandColors[platform] || 'bg-gray-500 hover:bg-gray-600'} text-white`;
 
+  // Debug: verificar se onSettings está sendo recebido
+  if (platform === 'twitter') {
+    console.log('[IntegrationCard] Twitter card renderizado. onSettings:', !!onSettings);
+  }
+
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
@@ -53,13 +58,16 @@ export default function IntegrationCard({
               <CardDescription>{description}</CardDescription>
             </div>
           </div>
-          {platform === 'twitter' && onSettings && (
+          {onSettings && (
             <Button
-              onClick={onSettings}
+              onClick={() => {
+                console.log('[IntegrationCard] Configurações clicadas para:', platform);
+                onSettings();
+              }}
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-muted-foreground hover:text-[#1DA1F2]"
-              title="Configurar API Token"
+              title="Configurar Bearer Token"
             >
               <Settings className="h-4 w-4" />
             </Button>
