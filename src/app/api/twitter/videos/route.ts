@@ -117,9 +117,11 @@ export async function GET(request: NextRequest) {
             console.log('[HYBRID-VIDEOS] ✅ Twitter User ID salvo:', userId);
         }
 
-        // Buscar tweets com vídeos (excluindo retweets e replies, máximo 25 resultados)
+        // Buscar tweets do usuário (max_results=100 para ter conteúdo suficiente)
+        // API v2: exclude=retweets,replies garante apenas conteúdo original
+        // Com 100 requisições/mês no free tier, cada busca conta como 1 requisição
         const tweetsResponse = await fetch(
-            `https://api.twitter.com/2/users/${userId}/tweets?max_results=25&exclude=retweets,replies&expansions=attachments.media_keys,author_id&tweet.fields=created_at,text,public_metrics&media.fields=url,preview_image_url,type,media_key,width,height,alt_text,variants&user.fields=profile_image_url,username`,
+            `https://api.twitter.com/2/users/${userId}/tweets?max_results=100&exclude=retweets,replies&expansions=attachments.media_keys,author_id&tweet.fields=created_at,text,public_metrics&media.fields=url,preview_image_url,type,media_key,width,height,alt_text,variants&user.fields=profile_image_url,username`,
             {
                 headers: {
                     'Authorization': `Bearer ${bearerToken}`,
