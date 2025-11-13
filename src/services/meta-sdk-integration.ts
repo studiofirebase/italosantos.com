@@ -188,7 +188,7 @@ class MetaSDKIntegration {
                     }
                 },
                 {
-                    scope: 'email,public_profile,user_photos,instagram_basic,pages_show_list',
+                    scope: 'email,public_profile',
                     return_scopes: true,
                     auth_type: 'rerequest',
                 }

@@ -76,11 +76,11 @@ export default function AdminSubscriptionsPage() {
         setFilteredSubscriptions(randomizedSubscriptions);
       } else {
         console.error('[Subscriptions Page] Erro no resultado:', result?.error);
-        
+
         // Definir array vazio em caso de erro
         setSubscriptions([]);
         setFilteredSubscriptions([]);
-        
+
         toast({
           variant: 'destructive',
           title: 'Erro ao carregar assinaturas',
@@ -89,15 +89,15 @@ export default function AdminSubscriptionsPage() {
       }
     } catch (error: any) {
       console.error('[Subscriptions Page] Exceção capturada:', error);
-      
+
       // Garantir que arrays sejam definidos mesmo em erro
       setSubscriptions([]);
       setFilteredSubscriptions([]);
-      
+
       // Mensagem de erro mais amigável
       const errorMsg = error?.message || error?.toString() || 'Erro interno do servidor';
       console.error('[Subscriptions Page] Detalhes do erro:', errorMsg);
-      
+
       toast({
         variant: 'destructive',
         title: 'Erro ao carregar assinaturas',
