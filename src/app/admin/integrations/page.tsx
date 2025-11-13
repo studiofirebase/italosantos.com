@@ -37,18 +37,7 @@ export default function AdminIntegrationsPage() {
     paypal: true,
     mercadopago: true,
   });
-
-  const scrollToTwitterSettings = () => {
-    const settingsSection = document.getElementById('twitter-settings');
-    if (settingsSection) {
-      settingsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      // Destacar temporariamente a seção
-      settingsSection.classList.add('ring-2', 'ring-[#1DA1F2]', 'ring-offset-2');
-      setTimeout(() => {
-        settingsSection.classList.remove('ring-2', 'ring-[#1DA1F2]', 'ring-offset-2');
-      }, 2000);
-    }
-  };
+  const [showTwitterSettings, setShowTwitterSettings] = useState(false);
 
   // Verificar autenticação do Twitter ao carregar
   useEffect(() => {
@@ -479,7 +468,7 @@ export default function AdminIntegrationsPage() {
               onDisconnect={() => handleDisconnect(data.platform as Integration)}
               onSync={data.onSync}
               syncing={isLoading[data.platform]}
-              onSettings={data.platform === 'twitter' ? scrollToTwitterSettings : undefined}
+              onSettings={data.platform === 'twitter' ? () => setShowTwitterSettings(true) : undefined}
             />
           );
         })}
@@ -487,16 +476,19 @@ export default function AdminIntegrationsPage() {
         {/* Cards de cadastro (Auth Demo / Phone / FirebaseUI) removidos: fluxo foi movido para o modal de cadastro do admin */}
       </div>
 
-      {/* Seção de Configurações do Twitter API */}
-      <TwitterBearerTokenSettings />
+      {/* Modal de Configurações do Twitter Bearer Token */}
+      <TwitterBearerTokenModal
+        isOpen={showTwitterSettings}
+        onClose={() => setShowTwitterSettings(false)}
+      />
 
       {/* Fluxo de Twitter via FirebaseUI Web executa em container oculto; nenhuma alteração visual aqui. */}
     </>
   );
 }
 
-// Componente de configurações do Bearer Token
-function TwitterBearerTokenSettings() {
+// Modal compacto para configuração do Bearer Token
+function TwitterBearerTokenModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { toast } = useToast();
   const [bearerToken, setBearerToken] = useState('');
   const [currentToken, setCurrentToken] = useState<string | null>(null);
@@ -504,8 +496,10 @@ function TwitterBearerTokenSettings() {
   const [isFetching, setIsFetching] = useState(true);
 
   useEffect(() => {
-    fetchCurrentToken();
-  }, []);
+    if (isOpen) {
+      fetchCurrentToken();
+    }
+  }, [isOpen]);
 
   const fetchCurrentToken = async () => {
     setIsFetching(true);
@@ -547,6 +541,7 @@ function TwitterBearerTokenSettings() {
         });
         setBearerToken('');
         fetchCurrentToken();
+        onClose();
       } else {
         const error = await res.json();
         toast({
@@ -597,67 +592,80 @@ function TwitterBearerTokenSettings() {
     }
   };
 
+  if (!isOpen) return null;
+
   return (
-    <div id="twitter-settings" className="mt-8 max-w-2xl mx-auto transition-all duration-200">
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <TwitterIcon />
-            <div>
-              <CardTitle>Configurações do Twitter API</CardTitle>
-              <CardDescription>
-                Configure o Bearer Token para acessar a API do Twitter
-                {!isFetching && currentToken && (
-                  <span className="block mt-1 text-xs">
-                    Token atual: <span className="font-mono text-[#1DA1F2]">{currentToken}</span>
-                  </span>
-                )}
-              </CardDescription>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <label htmlFor="bearer-token" className="text-sm font-medium">
-              Novo Bearer Token
-            </label>
-            <input
-              id="bearer-token"
-              type="text"
-              value={bearerToken}
-              onChange={(e) => setBearerToken(e.target.value)}
-              placeholder="AAAAAAAAAAAAAAAAAAAAAA..."
-              className="w-full px-3 py-2 border rounded-md font-mono text-sm"
-              disabled={isLoading}
-            />
-          </div>
+    <>
+      {/* Overlay */}
+      <div
+        className="fixed inset-0 bg-black/50 z-50 backdrop-blur-sm"
+        onClick={onClose}
+      />
 
-          <div className="flex gap-2">
-            <button
-              onClick={handleSaveToken}
-              disabled={isLoading || !bearerToken.trim()}
-              className="px-4 py-2 bg-[#1DA1F2] text-white rounded-md hover:bg-[#1A91DA] disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {isLoading ? 'Salvando...' : 'Salvar Token'}
-            </button>
-
-            {currentToken === 'firestore' && (
+      {/* Modal */}
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50 w-full max-w-md">
+        <Card className="shadow-2xl">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <TwitterIcon />
+                <CardTitle className="text-lg">Twitter API Token</CardTitle>
+              </div>
               <button
-                onClick={handleRestoreDefault}
-                disabled={isLoading}
-                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                onClick={onClose}
+                className="text-muted-foreground hover:text-foreground"
               >
-                Restaurar Padrão
+                ✕
               </button>
+            </div>
+            {!isFetching && currentToken && (
+              <CardDescription className="text-xs">
+                Token atual: <span className="font-mono text-[#1DA1F2]">{currentToken}</span>
+              </CardDescription>
             )}
-          </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="space-y-1.5">
+              <label htmlFor="bearer-token" className="text-sm font-medium">
+                Novo Bearer Token
+              </label>
+              <input
+                id="bearer-token"
+                type="text"
+                value={bearerToken}
+                onChange={(e) => setBearerToken(e.target.value)}
+                placeholder="AAAAAAAAAAAAAAAAAAAAAA..."
+                className="w-full px-3 py-2 border rounded-md font-mono text-xs"
+                disabled={isLoading}
+              />
+            </div>
 
-          <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
-            <p>💡 <strong>Dica:</strong> Troque o Bearer Token quando atingir o limite de requisições gratuitas.</p>
-            <p>🔒 O token é armazenado de forma segura no Firestore e tem prioridade sobre o token do arquivo .env</p>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveToken}
+                disabled={isLoading || !bearerToken.trim()}
+                className="flex-1 px-3 py-2 text-sm bg-[#1DA1F2] text-white rounded-md hover:bg-[#1A91DA] disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isLoading ? 'Salvando...' : 'Salvar'}
+              </button>
+
+              {currentToken === 'firestore' && (
+                <button
+                  onClick={handleRestoreDefault}
+                  disabled={isLoading}
+                  className="px-3 py-2 text-sm border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+                >
+                  Restaurar
+                </button>
+              )}
+            </div>
+
+            <p className="text-xs text-muted-foreground pt-2 border-t">
+              💡 Troque quando atingir o limite de requisições
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    </>
   );
 }
