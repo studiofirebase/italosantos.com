@@ -38,6 +38,18 @@ export default function AdminIntegrationsPage() {
     mercadopago: true,
   });
 
+  const scrollToTwitterSettings = () => {
+    const settingsSection = document.getElementById('twitter-settings');
+    if (settingsSection) {
+      settingsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      // Destacar temporariamente a seção
+      settingsSection.classList.add('ring-2', 'ring-[#1DA1F2]', 'ring-offset-2');
+      setTimeout(() => {
+        settingsSection.classList.remove('ring-2', 'ring-[#1DA1F2]', 'ring-offset-2');
+      }, 2000);
+    }
+  };
+
   // Verificar autenticação do Twitter ao carregar
   useEffect(() => {
     const checkTwitterAuth = async () => {
@@ -467,6 +479,7 @@ export default function AdminIntegrationsPage() {
               onDisconnect={() => handleDisconnect(data.platform as Integration)}
               onSync={data.onSync}
               syncing={isLoading[data.platform]}
+              onSettings={data.platform === 'twitter' ? scrollToTwitterSettings : undefined}
             />
           );
         })}
@@ -474,7 +487,177 @@ export default function AdminIntegrationsPage() {
         {/* Cards de cadastro (Auth Demo / Phone / FirebaseUI) removidos: fluxo foi movido para o modal de cadastro do admin */}
       </div>
 
+      {/* Seção de Configurações do Twitter API */}
+      <TwitterBearerTokenSettings />
+
       {/* Fluxo de Twitter via FirebaseUI Web executa em container oculto; nenhuma alteração visual aqui. */}
     </>
+  );
+}
+
+// Componente de configurações do Bearer Token
+function TwitterBearerTokenSettings() {
+  const { toast } = useToast();
+  const [bearerToken, setBearerToken] = useState('');
+  const [currentToken, setCurrentToken] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isFetching, setIsFetching] = useState(true);
+
+  useEffect(() => {
+    fetchCurrentToken();
+  }, []);
+
+  const fetchCurrentToken = async () => {
+    setIsFetching(true);
+    try {
+      const res = await fetch('/api/admin/twitter/bearer-token');
+      if (res.ok) {
+        const data = await res.json();
+        setCurrentToken(data.source);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar token:', error);
+    } finally {
+      setIsFetching(false);
+    }
+  };
+
+  const handleSaveToken = async () => {
+    if (!bearerToken.trim()) {
+      toast({
+        variant: 'destructive',
+        title: 'Token vazio',
+        description: 'Por favor, insira um Bearer Token válido.'
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/admin/twitter/bearer-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: bearerToken })
+      });
+
+      if (res.ok) {
+        toast({
+          title: 'Token salvo!',
+          description: 'O Bearer Token foi atualizado com sucesso.'
+        });
+        setBearerToken('');
+        fetchCurrentToken();
+      } else {
+        const error = await res.json();
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao salvar',
+          description: error.error || 'Não foi possível salvar o token.'
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro de conexão',
+        description: 'Não foi possível conectar ao servidor.'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleRestoreDefault = async () => {
+    setIsLoading(true);
+    try {
+      const res = await fetch('/api/admin/twitter/bearer-token', {
+        method: 'DELETE'
+      });
+
+      if (res.ok) {
+        toast({
+          title: 'Token restaurado!',
+          description: 'O sistema voltará a usar o token padrão do .env'
+        });
+        fetchCurrentToken();
+      } else {
+        toast({
+          variant: 'destructive',
+          title: 'Erro ao restaurar',
+          description: 'Não foi possível restaurar o token padrão.'
+        });
+      }
+    } catch (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Erro de conexão',
+        description: 'Não foi possível conectar ao servidor.'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div id="twitter-settings" className="mt-8 max-w-2xl mx-auto transition-all duration-200">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center gap-2">
+            <TwitterIcon />
+            <div>
+              <CardTitle>Configurações do Twitter API</CardTitle>
+              <CardDescription>
+                Configure o Bearer Token para acessar a API do Twitter
+                {!isFetching && currentToken && (
+                  <span className="block mt-1 text-xs">
+                    Token atual: <span className="font-mono text-[#1DA1F2]">{currentToken}</span>
+                  </span>
+                )}
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <label htmlFor="bearer-token" className="text-sm font-medium">
+              Novo Bearer Token
+            </label>
+            <input
+              id="bearer-token"
+              type="text"
+              value={bearerToken}
+              onChange={(e) => setBearerToken(e.target.value)}
+              placeholder="AAAAAAAAAAAAAAAAAAAAAA..."
+              className="w-full px-3 py-2 border rounded-md font-mono text-sm"
+              disabled={isLoading}
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleSaveToken}
+              disabled={isLoading || !bearerToken.trim()}
+              className="px-4 py-2 bg-[#1DA1F2] text-white rounded-md hover:bg-[#1A91DA] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isLoading ? 'Salvando...' : 'Salvar Token'}
+            </button>
+
+            {currentToken === 'firestore' && (
+              <button
+                onClick={handleRestoreDefault}
+                disabled={isLoading}
+                className="px-4 py-2 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50"
+              >
+                Restaurar Padrão
+              </button>
+            )}
+          </div>
+
+          <div className="text-xs text-muted-foreground space-y-1 pt-2 border-t">
+            <p>💡 <strong>Dica:</strong> Troque o Bearer Token quando atingir o limite de requisições gratuitas.</p>
+            <p>🔒 O token é armazenado de forma segura no Firestore e tem prioridade sobre o token do arquivo .env</p>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

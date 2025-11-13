@@ -1,6 +1,7 @@
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Settings } from "lucide-react";
 
 interface IntegrationCardProps {
   platform: string;
@@ -13,6 +14,7 @@ interface IntegrationCardProps {
   onDisconnect: () => void;
   onSync?: () => void;
   syncing?: boolean;
+  onSettings?: () => void;
 }
 
 export default function IntegrationCard({
@@ -25,7 +27,8 @@ export default function IntegrationCard({
   onConnect,
   onDisconnect,
   onSync,
-  syncing
+  syncing,
+  onSettings
 }: IntegrationCardProps) {
   const brandColors: Record<string, string> = {
     twitter: 'bg-[#1DA1F2] hover:bg-[#1A91DA]',
@@ -40,14 +43,27 @@ export default function IntegrationCard({
   return (
     <Card className="w-full max-w-sm">
       <CardHeader>
-        <div className="flex items-center space-x-4">
-          <div className="w-16 h-16 flex items-center justify-center rounded-lg">
-            {icon}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <div className="w-16 h-16 flex items-center justify-center rounded-lg">
+              {icon}
+            </div>
+            <div>
+              <CardTitle>{title}</CardTitle>
+              <CardDescription>{description}</CardDescription>
+            </div>
           </div>
-          <div>
-            <CardTitle>{title}</CardTitle>
-            <CardDescription>{description}</CardDescription>
-          </div>
+          {platform === 'twitter' && onSettings && (
+            <Button
+              onClick={onSettings}
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-muted-foreground hover:text-[#1DA1F2]"
+              title="Configurar API Token"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+          )}
         </div>
       </CardHeader>
       <CardContent className="flex flex-col space-y-2">
