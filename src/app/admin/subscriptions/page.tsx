@@ -67,26 +67,41 @@ export default function AdminSubscriptionsPage() {
       const result = await getAllSubscriptionsAdmin();
       console.log('[Subscriptions Page] Resultado:', result);
 
-      if (result.success) {
+      if (result && result.success) {
         // Randomizar as assinaturas antes de exibir
-        const randomizedSubscriptions = shuffleArray(result.subscriptions || [])
+        const subs = result.subscriptions || [];
+        const randomizedSubscriptions = shuffleArray(subs);
         console.log('[Subscriptions Page] Total de assinaturas:', randomizedSubscriptions.length);
         setSubscriptions(randomizedSubscriptions);
         setFilteredSubscriptions(randomizedSubscriptions);
       } else {
-        console.error('[Subscriptions Page] Erro no resultado:', result.error);
+        console.error('[Subscriptions Page] Erro no resultado:', result?.error);
+        
+        // Definir array vazio em caso de erro
+        setSubscriptions([]);
+        setFilteredSubscriptions([]);
+        
         toast({
           variant: 'destructive',
           title: 'Erro ao carregar assinaturas',
-          description: result.error || 'Erro desconhecido'
+          description: result?.error || 'Erro desconhecido ao buscar dados'
         });
       }
     } catch (error: any) {
       console.error('[Subscriptions Page] Exceção capturada:', error);
+      
+      // Garantir que arrays sejam definidos mesmo em erro
+      setSubscriptions([]);
+      setFilteredSubscriptions([]);
+      
+      // Mensagem de erro mais amigável
+      const errorMsg = error?.message || error?.toString() || 'Erro interno do servidor';
+      console.error('[Subscriptions Page] Detalhes do erro:', errorMsg);
+      
       toast({
         variant: 'destructive',
         title: 'Erro ao carregar assinaturas',
-        description: error?.message || error?.toString() || 'Erro interno do servidor'
+        description: 'Não foi possível carregar os dados. Tente recarregar a página.'
       });
     } finally {
       setIsLoading(false);

@@ -284,7 +284,19 @@ export async function cancelUserSubscription(subscriptionId: string) {
 
 export async function getAllSubscriptionsAdmin() {
   try {
-    // console.log('[Actions] Buscando todas as assinaturas...');
+    console.log('[Actions] Buscando todas as assinaturas...');
+    
+    // Verificar se o adminDb está disponível
+    const adminDb = getAdminDb();
+    if (!adminDb) {
+      console.error('[Actions] AdminDb não está inicializado');
+      return { 
+        success: false, 
+        error: 'Banco de dados admin não inicializado',
+        subscriptions: [] 
+      };
+    }
+
     const subscriptions = await getAllSubscriptionsFromUnifiedSource();
 
     const subscriptionsWithPlans = subscriptions.map(sub => ({
@@ -292,12 +304,21 @@ export async function getAllSubscriptionsAdmin() {
       plan: SUBSCRIPTION_PLANS.find(p => p.id === sub.planId)
     }));
 
-    // console.log('[Actions] Retornando assinaturas com planos:', subscriptionsWithPlans.length);
+    console.log('[Actions] Retornando assinaturas com planos:', subscriptionsWithPlans.length);
 
     return { success: true, subscriptions: subscriptionsWithPlans };
   } catch (error: any) {
     console.error('[Actions] Erro ao buscar assinaturas:', error);
-    return { success: false, error: error.message };
+    
+    // Retornar erro mais específico
+    const errorMessage = error?.message || error?.toString() || 'Erro desconhecido';
+    console.error('[Actions] Stack trace:', error?.stack);
+    
+    return { 
+      success: false, 
+      error: `Erro ao buscar assinaturas: ${errorMessage}`,
+      subscriptions: [] 
+    };
   }
 }
 
