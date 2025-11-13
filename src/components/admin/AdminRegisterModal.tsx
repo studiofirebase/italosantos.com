@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ShieldCheck, Loader2 } from "lucide-react";
 import { getAuth, RecaptchaVerifier, signInWithPhoneNumber, PhoneAuthProvider, linkWithCredential, EmailAuthProvider, sendEmailVerification, createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
 import { ensureAdminDoc } from "@/services/admin-auth-service";
+import { useRecaptcha } from "@/hooks/use-recaptcha";
 
 interface AdminRegisterModalProps {
     open: boolean;
@@ -27,6 +28,7 @@ export default function AdminRegisterModal({ open, onOpenChange }: AdminRegister
     const [saving, setSaving] = useState(false);
     const [verificationId, setVerificationId] = useState("");
     const { toast } = useToast();
+    const { isReady: isRecaptchaReady, executeRecaptcha } = useRecaptcha({ action: 'ADMIN_REGISTER' });
 
     const handleSendPhoneOtp = async () => {
         if (!phone.trim() || !name.trim()) {
@@ -34,8 +36,24 @@ export default function AdminRegisterModal({ open, onOpenChange }: AdminRegister
             return;
         }
 
+        // Verificar reCAPTCHA
+        if (!isRecaptchaReady) {
+            toast({ variant: "destructive", title: "Aguarde", description: "Sistema de segurança carregando..." });
+            return;
+        }
+
         setSaving(true);
         try {
+            // Executar reCAPTCHA primeiro
+            console.log('[Admin Register] Executando reCAPTCHA...');
+            const recaptchaToken = await executeRecaptcha();
+            
+            if (!recaptchaToken) {
+                throw new Error('Falha na verificação de segurança. Tente novamente.');
+            }
+
+            console.log('[Admin Register] reCAPTCHA verificado com sucesso');
+
             const auth = getAuth();
             const formattedPhone = phone.startsWith('+') ? phone : `+55${phone.replace(/\D/g, '')}`;
 
@@ -53,6 +71,7 @@ export default function AdminRegisterModal({ open, onOpenChange }: AdminRegister
             setStep("verify-phone");
             toast({ title: "OTP enviado!", description: "Verifique seu telefone." });
         } catch (error: any) {
+            console.error('[Admin Register] Erro:', error);
             toast({ variant: "destructive", title: "Erro ao enviar OTP", description: error.message });
         } finally {
             setSaving(false);
@@ -86,8 +105,24 @@ export default function AdminRegisterModal({ open, onOpenChange }: AdminRegister
             return;
         }
 
+        // Verificar reCAPTCHA
+        if (!isRecaptchaReady) {
+            toast({ variant: "destructive", title: "Aguarde", description: "Sistema de segurança carregando..." });
+            return;
+        }
+
         setSaving(true);
         try {
+            // Executar reCAPTCHA primeiro
+            console.log('[Admin Register] Executando reCAPTCHA para email...');
+            const recaptchaToken = await executeRecaptcha();
+            
+            if (!recaptchaToken) {
+                throw new Error('Falha na verificação de segurança. Tente novamente.');
+            }
+
+            console.log('[Admin Register] reCAPTCHA verificado com sucesso para email');
+
             const auth = getAuth();
             const userCredential = await createUserWithEmailAndPassword(auth, email, password);
             await updateProfile(userCredential.user, { displayName: name });
@@ -112,6 +147,7 @@ export default function AdminRegisterModal({ open, onOpenChange }: AdminRegister
                 setStep("form");
             }, 2000);
         } catch (error: any) {
+            console.error('[Admin Register] Erro no cadastro:', error);
             toast({ variant: "destructive", title: "Erro no cadastro", description: error.message });
         } finally {
             setSaving(false);
@@ -184,11 +220,25 @@ export default function AdminRegisterModal({ open, onOpenChange }: AdminRegister
 
                                     <div id="recaptcha-container-admin"></div>
 
+                                    {/* Indicador de status do reCAPTCHA */}
+                                    {!isRecaptchaReady && (
+                                        <div className="flex items-center justify-center gap-2 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-sm">
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                            <span className="text-muted-foreground">Carregando verificação de segurança...</span>
+                                        </div>
+                                    )}
+                                    {isRecaptchaReady && (
+                                        <div className="flex items-center justify-center gap-2 p-2 bg-green-500/10 border border-green-500/30 rounded text-sm">
+                                            <ShieldCheck className="h-4 w-4 text-green-500" />
+                                            <span className="text-green-500">Protegido por reCAPTCHA</span>
+                                        </div>
+                                    )}
+
                                     <div className="flex flex-col gap-2 pt-2">
                                         <Button
                                             className="w-full"
                                             onClick={handleSendPhoneOtp}
-                                            disabled={saving || !name || !phone || !email || !password}
+                                            disabled={saving || !name || !phone || !email || !password || !isRecaptchaReady}
                                         >
                                             {saving ? (
                                                 <>

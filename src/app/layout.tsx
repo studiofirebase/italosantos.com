@@ -10,7 +10,7 @@ import ScreenProtector from '@/components/screen-protector';
 import { ConditionalProviders } from '@/components/ConditionalProviders';
 import ServiceWorkerRegister from '@/components/pwa/ServiceWorkerRegister';
 
-const inter = Inter({ 
+const inter = Inter({
   subsets: ['latin'],
   variable: '--font-sans',
 });
@@ -46,7 +46,7 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  
+
   return (
     <html lang="pt-BR" className="dark" suppressHydrationWarning>
       <head>
@@ -83,7 +83,7 @@ export default function RootLayout({
       </head>
       <body className={`font-sans ${inter.variable} antialiased bg-background`} suppressHydrationWarning>
         <Script id="google-tag-manager" strategy="afterInteractive">
-            {`
+          {`
               (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
               new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
               j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
@@ -92,14 +92,20 @@ export default function RootLayout({
             `}
         </Script>
         <noscript>
-            <iframe
-                src="https://www.googletagmanager.com/ns.html?id=GTM-XXXXXXX"
-                height="0"
-                width="0"
-                style={{ display: "none", visibility: "hidden" }}
-            ></iframe>
+          <iframe
+            src="https://www.googletagmanager.com/ns.html?id=GTM-XXXXXXX"
+            height="0"
+            width="0"
+            style={{ display: "none", visibility: "hidden" }}
+          ></iframe>
         </noscript>
-        
+
+        {/* reCAPTCHA Enterprise */}
+        <Script
+          src={`https://www.google.com/recaptcha/enterprise.js?render=${process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY || '6LchOQosAAAAAJHtFnbWvP4xhePZaVhg4NRd2cEj'}`}
+          strategy="afterInteractive"
+        />
+
         <div id="fb-root"></div>
         <Script id="facebook-sdk-init" strategy="afterInteractive">
           {`
@@ -133,7 +139,7 @@ export default function RootLayout({
              }(document, 'script', 'facebook-jssdk'));
           `}
         </Script>
-        
+
         {/* Google Pay Script */}
         <Script id="google-pay-script" strategy="afterInteractive">
           {`
@@ -151,7 +157,7 @@ export default function RootLayout({
             })();
           `}
         </Script>
-        
+
         <ConditionalProviders>
           {children}
         </ConditionalProviders>
