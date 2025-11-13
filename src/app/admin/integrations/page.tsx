@@ -15,10 +15,6 @@ import { InstagramIcon } from '@/components/icons/InstagramIcon';
 import { TwitterIcon } from '@/components/icons/TwitterIcon';
 import { PayPalIcon } from '@/components/icons/PayPalIcon';
 import { MercadoPagoIcon } from '@/components/icons/MercadoPagoIcon';
-// Removidos os cards de demo/cadastro (FirebaseUI/Phone/AuthDemo) — agora o cadastro acontece via modal
-// import FirebaseAuthDemo from "@/components/admin/FirebaseAuthDemo";
-// import FirebasePhoneAuthWidget from "@/components/admin/FirebasePhoneAuthWidget";
-// import FirebaseUiDemo from "@/components/admin/FirebaseUiDemo";
 import { getEndpoint, openOAuthWindow, postLogout } from "@/lib/integrations";
 import { metaSDK } from "@/services/meta-sdk-integration";
 import { getAuth } from "firebase/auth";
