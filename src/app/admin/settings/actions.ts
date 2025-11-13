@@ -55,6 +55,16 @@ export interface ProfileSettings {
     pixValue: number;
     pixKey: string;
     pixKeyType: string;
+    // PayPal Configuration
+    paypalClientId?: string;
+    paypalClientSecret?: string;
+    paypalSandboxMode?: boolean;
+    paypalEmail?: string;
+    // MercadoPago Configuration
+    mercadoPagoPublicKey?: string;
+    mercadoPagoAccessToken?: string;
+    mercadoPagoSandboxMode?: boolean;
+    mercadoPagoEmail?: string;
   };
 
   // Configurações do Footer
