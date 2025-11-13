@@ -4,68 +4,85 @@ import { getAuth } from 'firebase-admin/auth';
 import { getFirestore } from 'firebase-admin/firestore';
 
 export async function GET(request: NextRequest) {
-  try {
-    console.log('[HYBRID-PHOTOS] Iniciando busca de fotos...');
+    try {
+        console.log('[HYBRID-PHOTOS] Iniciando busca de fotos...');
 
-    // Verificar token de autenticação do Firebase
-    const authHeader = request.headers.get('authorization');
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      console.error('[HYBRID-PHOTOS] Token não fornecido');
-      return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
-    }
+        // Verificar token de autenticação do Firebase
+        const authHeader = request.headers.get('authorization');
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            console.error('[HYBRID-PHOTOS] Token não fornecido');
+            return NextResponse.json({ error: 'Token não fornecido' }, { status: 401 });
+        }
 
-    const token = authHeader.split('Bearer ')[1];
-    
-    // Verificar token do Firebase Admin
-    const adminApp = getAdminApp();
-    if (!adminApp) {
-      console.error('[HYBRID-PHOTOS] Firebase Admin não inicializado');
-      return NextResponse.json({ error: 'Erro ao inicializar Firebase Admin' }, { status: 500 });
-    }
+        const token = authHeader.split('Bearer ')[1];
 
-    const auth = getAuth(adminApp);
-    const decodedToken = await auth.verifyIdToken(token);
-    const uid = decodedToken.uid;
+        // Verificar token do Firebase Admin
+        const adminApp = getAdminApp();
+        if (!adminApp) {
+            console.error('[HYBRID-PHOTOS] Firebase Admin não inicializado');
+            return NextResponse.json({ error: 'Erro ao inicializar Firebase Admin' }, { status: 500 });
+        }
 
-    console.log('[HYBRID-PHOTOS] Usuário autenticado:', uid);
+        const auth = getAuth(adminApp);
+        const decodedToken = await auth.verifyIdToken(token);
+        const uid = decodedToken.uid;
 
-    // Buscar username do Firestore
-    const db = getFirestore(adminApp);
-    const twitterAdminDoc = await db.collection('twitter_admins').doc(uid).get();
+        console.log('[HYBRID-PHOTOS] Usuário autenticado:', uid);
 
-    if (!twitterAdminDoc.exists) {
-      console.error('[HYBRID-PHOTOS] Username não encontrado no Firestore');
-      return NextResponse.json({ error: 'Usuário não possui Twitter autenticado. Por favor, autentique na página /admin/integrations' }, { status: 404 });
-    }
+        // Buscar username do Firestore
+        const db = getFirestore(adminApp);
+        const twitterAdminDoc = await db.collection('twitter_admins').doc(uid).get();
 
-    const userData = twitterAdminDoc.data() as { username: string; twitterUserId?: string };
-    const username = userData.username;
-    let userId = userData.twitterUserId;
-    
-    console.log('[HYBRID-PHOTOS] Username:', username, '| UserID salvo:', userId);
+        if (!twitterAdminDoc.exists) {
+            console.error('[HYBRID-PHOTOS] Username não encontrado no Firestore');
+            return NextResponse.json({ error: 'Usuário não possui Twitter autenticado. Por favor, autentique na página /admin/integrations' }, { status: 404 });
+        }
 
-    // Verificar cache no Firestore
-    const cacheDoc = await db.collection('twitter_cache').doc(username).collection('media').doc('photos').get();
+        const userData = twitterAdminDoc.data() as { username: string; twitterUserId?: string };
+        const username = userData.username;
+        let userId = userData.twitterUserId;
 
-    if (cacheDoc.exists) {
-      const cacheData = cacheDoc.data();
-      const cacheAge = Date.now() - new Date(cacheData!.timestamp).getTime();
-      const oneHour = 60 * 60 * 1000;
+        console.log('[HYBRID-PHOTOS] Username:', username, '| UserID salvo:', userId);
 
-      if (cacheAge < oneHour && cacheData!.data) {
-        console.log('[HYBRID-PHOTOS] ✅ Retornando cache válido');
-        return NextResponse.json({ 
-          success: true,
-          tweets: cacheData!.data,
-          cached: true,
-          username: username 
-        });
-      }
-      console.log('[HYBRID-PHOTOS] ⚠️ Cache expirado');
-    }
+        // Verificar cache no Firestore
+        const cacheDoc = await db.collection('twitter_cache').doc(username).collection('media').doc('photos').get();
 
-        // Buscar do Twitter API usando Bearer Token
-        const bearerToken = process.env.TWITTER_BEARER_TOKEN;
+        if (cacheDoc.exists) {
+            const cacheData = cacheDoc.data();
+            const cacheAge = Date.now() - new Date(cacheData!.timestamp).getTime();
+            const oneHour = 60 * 60 * 1000;
+
+            if (cacheAge < oneHour && cacheData!.data) {
+                console.log('[HYBRID-PHOTOS] ✅ Retornando cache válido');
+                return NextResponse.json({
+                    success: true,
+                    tweets: cacheData!.data,
+                    cached: true,
+                    username: username
+                });
+            }
+            console.log('[HYBRID-PHOTOS] ⚠️ Cache expirado');
+        }
+
+        // Buscar Bearer Token (prioridade: Firestore > .env)
+        let bearerToken: string | undefined;
+
+        try {
+            const configDoc = await db.collection('twitter_config').doc('bearer_token').get();
+            if (configDoc.exists && configDoc.data()?.token) {
+                bearerToken = configDoc.data()!.token;
+                console.log('[HYBRID-PHOTOS] 🔑 Usando Bearer Token do Firestore');
+            }
+        } catch (error) {
+            console.warn('[HYBRID-PHOTOS] ⚠️ Erro ao buscar token do Firestore:', error);
+        }
+
+        // Fallback para .env
+        if (!bearerToken) {
+            bearerToken = process.env.TWITTER_BEARER_TOKEN;
+            console.log('[HYBRID-PHOTOS] 🔑 Usando Bearer Token do .env');
+        }
+
         if (!bearerToken) {
             console.error('[HYBRID-PHOTOS] ❌ Bearer Token não configurado');
             return NextResponse.json({ error: 'Twitter Bearer Token não configurado' }, { status: 500 });
@@ -84,8 +101,8 @@ export async function GET(request: NextRequest) {
 
             if (!userResponse.ok) {
                 console.error('[HYBRID-PHOTOS] ❌ Erro ao buscar usuário:', userResponse.status);
-                return NextResponse.json({ 
-                    error: 'Rate limit atingido ou erro ao buscar usuário do Twitter. Aguarde alguns minutos.' 
+                return NextResponse.json({
+                    error: 'Rate limit atingido ou erro ao buscar usuário do Twitter. Aguarde alguns minutos.'
                 }, { status: userResponse.status });
             }
 
@@ -143,16 +160,16 @@ export async function GET(request: NextRequest) {
             };
         }).filter((tweet: any) => tweet.media.length > 0);
 
-    console.log('[HYBRID-PHOTOS] Encontrados', tweetsWithPhotos.length, 'tweets com fotos');
+        console.log('[HYBRID-PHOTOS] Encontrados', tweetsWithPhotos.length, 'tweets com fotos');
 
-    // Salvar cache no Firestore (máximo 25 tweets)
-    const tweetsToCache = tweetsWithPhotos.slice(0, 25);
-    await db.collection('twitter_cache').doc(username).collection('media').doc('photos').set({
-      data: tweetsToCache,
-      timestamp: new Date().toISOString(),
-    });
+        // Salvar cache no Firestore (máximo 25 tweets)
+        const tweetsToCache = tweetsWithPhotos.slice(0, 25);
+        await db.collection('twitter_cache').doc(username).collection('media').doc('photos').set({
+            data: tweetsToCache,
+            timestamp: new Date().toISOString(),
+        });
 
-    console.log('[HYBRID-PHOTOS] Cache salvo no Firestore');        return NextResponse.json({
+        console.log('[HYBRID-PHOTOS] Cache salvo no Firestore'); return NextResponse.json({
             success: true,
             tweets: tweetsToCache,
             cached: false,

@@ -504,7 +504,25 @@ function TwitterBearerTokenModal({ isOpen, onClose }: { isOpen: boolean; onClose
   const fetchCurrentToken = async () => {
     setIsFetching(true);
     try {
-      const res = await fetch('/api/admin/twitter/bearer-token');
+      // Obter token de autenticação do Firebase
+      const { getAuth } = await import('firebase/auth');
+      const { app } = await import('@/lib/firebase');
+      const auth = getAuth(app);
+      const user = auth.currentUser;
+
+      if (!user) {
+        console.error('Usuário não autenticado');
+        return;
+      }
+
+      const accessToken = await user.getIdToken();
+
+      const res = await fetch('/api/admin/twitter/bearer-token', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
       if (res.ok) {
         const data = await res.json();
         setCurrentToken(data.source);
@@ -528,9 +546,30 @@ function TwitterBearerTokenModal({ isOpen, onClose }: { isOpen: boolean; onClose
 
     setIsLoading(true);
     try {
+      // Obter token de autenticação do Firebase
+      const { getAuth } = await import('firebase/auth');
+      const { app } = await import('@/lib/firebase');
+      const auth = getAuth(app);
+      const user = auth.currentUser;
+
+      if (!user) {
+        toast({
+          variant: 'destructive',
+          title: 'Não autenticado',
+          description: 'Você precisa estar logado para salvar o token.'
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      const accessToken = await user.getIdToken();
+
       const res = await fetch('/api/admin/twitter/bearer-token', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${accessToken}`
+        },
         body: JSON.stringify({ token: bearerToken })
       });
 
@@ -564,8 +603,29 @@ function TwitterBearerTokenModal({ isOpen, onClose }: { isOpen: boolean; onClose
   const handleRestoreDefault = async () => {
     setIsLoading(true);
     try {
+      // Obter token de autenticação do Firebase
+      const { getAuth } = await import('firebase/auth');
+      const { app } = await import('@/lib/firebase');
+      const auth = getAuth(app);
+      const user = auth.currentUser;
+      
+      if (!user) {
+        toast({
+          variant: 'destructive',
+          title: 'Não autenticado',
+          description: 'Você precisa estar logado para restaurar o token.'
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      const accessToken = await user.getIdToken();
+
       const res = await fetch('/api/admin/twitter/bearer-token', {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
       });
 
       if (res.ok) {

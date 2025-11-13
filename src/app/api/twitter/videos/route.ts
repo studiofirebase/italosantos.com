@@ -64,8 +64,25 @@ export async function GET(request: NextRequest) {
             console.log('[HYBRID-VIDEOS] ⚠️ Cache expirado');
         }
 
-        // Buscar do Twitter API usando Bearer Token
-        const bearerToken = process.env.TWITTER_BEARER_TOKEN;
+        // Buscar Bearer Token (prioridade: Firestore > .env)
+        let bearerToken: string | undefined;
+        
+        try {
+            const configDoc = await db.collection('twitter_config').doc('bearer_token').get();
+            if (configDoc.exists && configDoc.data()?.token) {
+                bearerToken = configDoc.data()!.token;
+                console.log('[HYBRID-VIDEOS] 🔑 Usando Bearer Token do Firestore');
+            }
+        } catch (error) {
+            console.warn('[HYBRID-VIDEOS] ⚠️ Erro ao buscar token do Firestore:', error);
+        }
+
+        // Fallback para .env
+        if (!bearerToken) {
+            bearerToken = process.env.TWITTER_BEARER_TOKEN;
+            console.log('[HYBRID-VIDEOS] 🔑 Usando Bearer Token do .env');
+        }
+
         if (!bearerToken) {
             console.error('[HYBRID-VIDEOS] ❌ Bearer Token não configurado');
             return NextResponse.json({ error: 'Twitter Bearer Token não configurado' }, { status: 500 });
