@@ -51,6 +51,54 @@ export function extractDailymotionId(url: string): string | null {
 }
 
 /**
+ * Verifica se uma URL é do Google Photos
+ */
+export function isGooglePhotosUrl(url: string): boolean {
+  const urlLower = url.toLowerCase();
+  return urlLower.includes('photos.google.com') || 
+         urlLower.includes('photos.app.goo.gl') ||
+         urlLower.includes('googleusercontent.com');
+}
+
+/**
+ * Verifica se uma URL é do iCloud
+ */
+export function isICloudUrl(url: string): boolean {
+  const urlLower = url.toLowerCase();
+  return urlLower.includes('icloud.com') || 
+         urlLower.includes('apple.com/photos');
+}
+
+/**
+ * Converte URL do Google Photos para URL direta
+ */
+export function convertGooglePhotosUrl(url: string): string {
+  // Google Photos compartilhado: adicionar =dv para forçar download/visualização direta
+  if (url.includes('photos.google.com') || url.includes('photos.app.goo.gl')) {
+    // Remover parâmetros existentes e adicionar =dv para vídeo direto
+    const baseUrl = url.split('?')[0];
+    return `${baseUrl}=dv`;
+  }
+  
+  // Se já é googleusercontent, pode usar direto mas adicionar parâmetros otimizados
+  if (url.includes('googleusercontent.com')) {
+    return url;
+  }
+  
+  return url;
+}
+
+/**
+ * Converte URL do iCloud para URL direta (método de fallback)
+ */
+export function convertICloudUrl(url: string): string {
+  // iCloud não permite hotlinking facilmente
+  // A melhor solução é avisar o usuário para fazer upload direto
+  // Mas tentamos preservar a URL original
+  return url;
+}
+
+/**
  * Verifica se uma URL é um vídeo direto (MP4, AVI, etc.)
  */
 export function isDirectVideoUrl(url: string): boolean {
@@ -69,6 +117,16 @@ export function isDirectVideoUrl(url: string): boolean {
   
   // Verificar URLs do Google Drive
   if (urlLower.includes('drive.google.com') || urlLower.includes('docs.google.com')) {
+    return true;
+  }
+  
+  // Verificar Google Photos
+  if (isGooglePhotosUrl(url)) {
+    return true;
+  }
+  
+  // Verificar iCloud
+  if (isICloudUrl(url)) {
     return true;
   }
   
@@ -163,6 +221,26 @@ export function processVideoUrl(url: string): VideoUrlInfo {
         isEmbeddable: true
       };
     }
+  }
+
+  // Google Photos - converter para URL direta
+  if (isGooglePhotosUrl(url)) {
+    const directUrl = convertGooglePhotosUrl(url);
+    return {
+      platform: 'direct',
+      originalUrl: directUrl,
+      isEmbeddable: false
+    };
+  }
+
+  // iCloud - converter (com limitações)
+  if (isICloudUrl(url)) {
+    const directUrl = convertICloudUrl(url);
+    return {
+      platform: 'direct',
+      originalUrl: directUrl,
+      isEmbeddable: false
+    };
   }
 
   // Vídeo direto

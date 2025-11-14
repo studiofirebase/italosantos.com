@@ -478,10 +478,13 @@ export default function AdminVideosPage() {
                     disabled={isSubmitting}
                   />
                   <p className="text-sm text-blue-600 mt-1">
-                    ✅ Suporte completo: <strong>YouTube</strong>, <strong>Vimeo</strong>, <strong>Dailymotion</strong>, Google Drive
+                    ✅ Suporte completo: <strong>YouTube</strong>, <strong>Vimeo</strong>, <strong>Dailymotion</strong>, <strong>Google Photos</strong>, <strong>iCloud</strong>
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Também aceita links diretos de vídeo (.mp4, .webm, etc.)
+                    Também aceita links diretos de vídeo (.mp4, .webm, etc.) e Google Drive
+                  </p>
+                  <p className="text-xs text-orange-600 mt-1">
+                    ⚠️ Google Photos e iCloud: Use links de álbuns compartilhados publicamente
                   </p>
                   
                   {/* Preview da URL */}

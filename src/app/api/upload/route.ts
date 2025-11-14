@@ -119,17 +119,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }
         });
 
-        // Tornar público
-        try {
-          await fileUpload.makePublic();
-          console.log('[Upload API] Arquivo tornado público com sucesso');
-        } catch (publicError) {
-          console.warn('[Upload API] Aviso: Não foi possível tornar arquivo público:', publicError);
-          // Continuar mesmo se falhar - o arquivo ainda pode ser acessado via Firebase Storage Rules
-        }
+        // Não tentar fazer makePublic() - usar URL de download direto
+        // O Firebase Storage Rules já permite leitura pública em /uploads/**
         
         storageType = 'firebase-storage';
-        finalUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+        // Usar getSignedUrl ou URL público via Storage Rules
+        const [signedUrl] = await fileUpload.getSignedUrl({
+          action: 'read',
+          expires: '03-01-2500' // URL de longa duração
+        });
+        finalUrl = signedUrl;
         
         console.log('[Upload API] Imagem enviada para Firebase Storage:', finalUrl);
       } else if (isVideo && fileSize <= VIDEO_STORAGE_LIMIT) {
@@ -155,10 +154,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           }
         });
 
-        await fileUpload.makePublic();
+        // Não tentar fazer makePublic() - usar URL de download direto
+        // O Firebase Storage Rules já permite leitura pública em /uploads/**
         
         storageType = 'firebase-storage';
-        finalUrl = `https://storage.googleapis.com/${bucket.name}/${filePath}`;
+        // Usar getSignedUrl ou URL público via Storage Rules
+        const [signedUrl] = await fileUpload.getSignedUrl({
+          action: 'read',
+          expires: '03-01-2500' // URL de longa duração
+        });
+        finalUrl = signedUrl;
         
         if (process.env.NODE_ENV === 'development') {
           console.log('[Upload API] Vídeo enviado para Firebase Storage:', finalUrl);

@@ -425,18 +425,25 @@ export default function Home() {
                                         />
                                     </div>
                                 ) : (
-                                    <button
-                                        className="w-full h-14 sm:h-16 md:h-20 bg-blue-500 rounded-lg flex items-center justify-center shadow-lg transition-transform hover:scale-[1.01] active:scale-[0.99]"
-                                        onClick={handlePayPalClick}
-                                        aria-label="Pagar com PayPal"
-                                    >
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 sm:w-10 sm:h-10 bg-white rounded-md flex items-center justify-center">
-                                                <span className="text-blue-500 font-bold text-sm sm:text-base">P</span>
-                                            </div>
-                                            <span className="text-white font-semibold text-sm sm:text-base md:text-lg">Assinar Agora</span>
-                                        </div>
-                                    </button>
+                                    <div className="w-full">
+                                        <PayPalV6Buttons
+                                            onApprove={(data: any, actions: any) => {
+                                                console.log('Pagamento aprovado:', data);
+                                                toast({
+                                                    title: 'Pagamento Aprovado!',
+                                                    description: 'Sua assinatura foi ativada com sucesso.',
+                                                });
+                                            }}
+                                            onError={(err: any) => {
+                                                console.error('Erro no pagamento:', err);
+                                                toast({
+                                                    variant: 'destructive',
+                                                    title: 'Erro no Pagamento',
+                                                    description: 'Não foi possível processar o pagamento. Tente novamente.',
+                                                });
+                                            }}
+                                        />
+                                    </div>
                                 )}
                             </div>
                         </div>

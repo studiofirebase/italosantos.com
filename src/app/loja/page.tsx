@@ -4,21 +4,16 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ShoppingCart, Loader2, Instagram, Facebook, AlertCircle, Lock, Eye, Play } from 'lucide-react';
+import { ShoppingCart, Loader2, AlertCircle, Lock, Eye, Play } from 'lucide-react';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { collection, getDocs, orderBy, query, doc, getDoc, updateDoc, arrayUnion, setDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { fetchInstagramShopFeed, type InstagramMedia } from '@/ai/flows/instagram-shop-flow';
-import { fetchFacebookProducts, type FacebookProduct } from '@/ai/flows/facebook-products-flow';
-import { Separator } from '@/components/ui/separator';
-import { Alert, AlertTitle, AlertDescription as AlertDesc } from '@/components/ui/alert';
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { useAuth } from '@/contexts/AuthProvider';
 import { useRouter } from 'next/navigation';
 import { SmartVideoThumbnail } from '@/components/smart-video-player';
 import { Badge } from '@/components/ui/badge';
-import InstagramOAuthManager from '@/components/instagram-oauth-manager';
 
 interface Product {
   id: string;
@@ -36,156 +31,6 @@ interface Product {
 }
 
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
-
-// --- COMPONENTES DE FEED (Instagram e Facebook) --- 
-// ... (Estes componentes permanecem os mesmos)
-const InstagramShopFeed = () => {
-  const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
-  const [media, setMedia] = useState<InstagramMedia[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const getFeed = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await fetchInstagramShopFeed();
-        if (response.error) {
-          setError(`Não foi possível carregar as fotos do Instagram. Motivo: ${response.error}`);
-        } else {
-          const photosOnly = response.media.filter((m: InstagramMedia) => m.media_type === 'IMAGE' && m.media_url);
-          setMedia(photosOnly);
-        }
-      } catch (e: any) {
-        const errorMessage = e.message || "Ocorreu um erro desconhecido.";
-        setError(`Não foi possível carregar as fotos do Instagram. Motivo: ${errorMessage}`);
-        toast({
-          variant: 'destructive',
-          title: 'Erro ao Carregar o Feed da Loja',
-          description: errorMessage,
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    getFeed();
-  }, [toast]);
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-40">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Não foi possível carregar o feed</AlertTitle>
-        <AlertDesc>{error}</AlertDesc>
-      </Alert>
-    );
-  }
-
-  if (media.length === 0) return <p className="text-muted-foreground text-center">Nenhuma foto encontrada no Instagram da loja.</p>;
-
-  return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-      {media.map((item) => (
-        <a key={item.id} href={item.permalink} target="_blank" rel="noopener noreferrer" className="group relative aspect-square overflow-hidden rounded-lg border border-primary/20 hover:border-primary hover:shadow-neon-red-light transition-all">
-          <Image src={item.media_url!} alt={item.caption || 'Instagram Post'} width={300} height={300} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-110" data-ai-hint="instagram shop product" />
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-            {item.caption && <p className="text-white text-xs font-bold line-clamp-2">{item.caption}</p>}
-          </div>
-        </a>
-      ))}
-    </div>
-  );
-};
-
-const FacebookProductsStore = () => {
-  const { toast } = useToast();
-  const [isLoading, setIsLoading] = useState(true);
-  const [products, setProducts] = useState<FacebookProduct[]>([]);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const getProducts = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await fetchFacebookProducts();
-        if (response.error) {
-          setError(`Não foi possível carregar os produtos do Facebook. Motivo: ${response.error}`);
-        } else {
-          setProducts(response.products);
-        }
-      } catch (e: any) {
-        const errorMessage = e.message || "Ocorreu um erro desconhecido.";
-        setError(`Não foi possível carregar os produtos do Facebook. Motivo: ${errorMessage}`);
-        toast({
-          variant: 'destructive',
-          title: 'Erro ao Carregar Catálogo',
-          description: errorMessage,
-        });
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    getProducts();
-  }, [toast]);
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center items-center h-40">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <Alert variant="destructive">
-        <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Não foi possível carregar o catálogo</AlertTitle>
-        <AlertDesc>{error}</AlertDesc>
-      </Alert>
-    );
-  }
-
-  if (products.length === 0) return <p className="text-muted-foreground text-center">Nenhum produto encontrado no Facebook.</p>;
-
-
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-      {products.map(product => (
-        <Card key={product.id} className="overflow-hidden bg-card/50 border-primary/20 hover:border-primary hover:shadow-neon-red-light transition-all duration-300 flex flex-col group">
-          <CardHeader className="p-0">
-            <div className="aspect-video bg-muted overflow-hidden">
-              <Image src={product.image_url} alt={product.name} width={600} height={400} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" data-ai-hint="facebook catalog product" />
-            </div>
-          </CardHeader>
-          <CardContent className="p-4 flex-1 flex flex-col">
-            <CardTitle className="text-lg text-foreground">{product.name}</CardTitle>
-            <CardDescription className="text-sm text-muted-foreground mt-1 flex-grow">{product.description}</CardDescription>
-            <p className="text-white font-semibold text-xl mt-2">{product.price}</p>
-          </CardContent>
-          <CardFooter className="p-4 mt-auto">
-            <Button asChild className="w-full h-11 bg-white hover:bg-gray-200 text-black shadow-lg transition-all duration-300">
-              <a href={product.url} target="_blank" rel="noopener noreferrer">
-                <Facebook className="mr-2 h-5 w-5" />
-                Ver no Facebook
-              </a>
-            </Button>
-          </CardFooter>
-        </Card>
-      ))}
-    </div>
-  );
-};
 
 function LojaPageContent() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -364,7 +209,7 @@ function LojaPageContent() {
                         <div className="text-center p-3 bg-green-500/10 rounded-lg"><p className="text-green-600 font-medium">✓ Produto Comprado</p></div>
                       ) : !user ? (
                         <Button onClick={() => router.push('/auth/face')} className="w-full">🔐 Fazer Login para Comprar</Button>
-                      ) : (product.sellerId && PAYPAL_CLIENT_ID) ? (
+                      ) : PAYPAL_CLIENT_ID ? (
                         <PayPalButtons
                           style={{ layout: 'horizontal', color: 'gold', shape: 'rect', label: 'buynow' }}
                           createOrder={async (data, actions) => {
@@ -372,7 +217,7 @@ function LojaPageContent() {
                               const res = await fetch('/api/paypal/create-order', {
                                 method: 'POST',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ productId: product.id, sellerId: product.sellerId }),
+                                body: JSON.stringify({ productId: product.id }),
                               });
                               const order = await res.json();
                               if (order.orderId) {
@@ -393,7 +238,7 @@ function LojaPageContent() {
                                 body: JSON.stringify({
                                   orderId: data.orderID,
                                   productId: product.id,
-                                  sellerId: product.sellerId
+                                  userId: user?.uid
                                 }),
                               });
                               const result = await res.json();
@@ -411,7 +256,7 @@ function LojaPageContent() {
                           }}
                         />
                       ) : (
-                        <div className="text-center p-3 bg-destructive/10 rounded-lg"><p className="text-destructive font-medium">Vendedor não configurado</p></div>
+                        <div className="text-center p-3 bg-destructive/10 rounded-lg"><p className="text-destructive font-medium">PayPal não configurado</p></div>
                       )}
                     </div>
                   </CardFooter>
@@ -425,28 +270,6 @@ function LojaPageContent() {
             </div>
           )}
         </div>
-
-        {user && (
-          <>
-            <Separator className="my-8 bg-gray-400" />
-
-            <div>
-              <CardTitle className="text-2xl text-white flex items-center gap-3 mb-4">
-                <Facebook /> Facebook
-              </CardTitle>
-              <FacebookProductsStore />
-            </div>
-
-            <Separator className="my-8 bg-gray-400" />
-
-            <div>
-              <CardTitle className="text-2xl text-white flex items-center gap-3 mb-4">
-                <Instagram /> Instagram
-              </CardTitle>
-              <InstagramShopFeed />
-            </div>
-          </>
-        )}
       </CardContent>
     </Card>
   );

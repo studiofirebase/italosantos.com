@@ -3,11 +3,10 @@
 
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../../components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../components/ui/tabs";
-import { Loader2, AlertCircle, Camera, Twitter, Upload, Maximize2, RefreshCw } from 'lucide-react';
+import { Loader2, AlertCircle, Camera, Maximize2 } from 'lucide-react';
 import Image from "next/image";
 import { useToast } from "../../hooks/use-toast";
-import { collection, getDocs, Timestamp, orderBy, query } from 'firebase/firestore';
+import { collection, getDocs, orderBy, query } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import {
     Dialog,
@@ -15,25 +14,8 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { getCachedPhotos, cachePhotos, getCacheStats } from '@/services/twitter-media-cache';// Interfaces para os tipos de mídia
-interface TwitterMedia {
-    url?: string;
-    preview_image_url?: string;
-    type: string;
-    media_key: string;
-}
 
-// Tipo para tweet com mídia (baseado no novo schema)
-interface TweetWithMedia {
-    id: string;
-    text: string;
-    created_at?: string;
-    media: TwitterMedia[];
-    username: string;
-    profile_image_url?: string;
-    isRetweet?: boolean;
-}
-
+// Interfaces
 interface UploadedPhoto {
     id: string;
     title: string;
@@ -63,128 +45,6 @@ const FeedEmpty = ({ message }: { message: string }) => (
     </div>
 );
 
-// Componente de card para fotos do Twitter
-const TwitterPhotoCard = ({ media, tweet, index }: { media: TwitterMedia, tweet: TweetWithMedia | undefined, index: number }) => {
-    const [imageError, setImageError] = useState(false);
-    const [imageLoaded, setImageLoaded] = useState(false);
-    const [isFullscreen, setIsFullscreen] = useState(false);
-
-    const handleImageError = () => {
-        setImageError(true);
-    };
-
-    const handleImageLoad = () => {
-        setImageLoaded(true);
-    };
-
-    const openInTwitter = () => {
-        if (tweet?.id) {
-            window.open(`https://twitter.com/user/status/${tweet.id}`, '_blank');
-        }
-    };
-
-    return (
-        <>
-            <div className="group relative aspect-square overflow-hidden rounded-lg border border-primary/20 hover:border-primary hover:shadow-neon-red-light transition-all">
-                <div className="relative w-full h-full bg-black">
-                    {media.url && !imageError ? (
-                        <>
-                            {/* Imagem principal */}
-                            <Image
-                                src={media.url}
-                                alt={`Foto do Twitter #${index + 1}`}
-                                width={600}
-                                height={600}
-                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-                                onError={handleImageError}
-                                onLoad={handleImageLoad}
-                                data-ai-hint="twitter feed image"
-                            />
-
-                            {/* Overlay quando imagem não carregou ainda */}
-                            {!imageLoaded && !imageError && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black/50">
-                                    <div className="text-white text-center">
-                                        <Camera className="h-8 w-8 mx-auto mb-2 animate-pulse" />
-                                    </div>
-                                </div>
-                            )}
-                        </>
-                    ) : (
-                        // Fallback quando imagem falha ou não há URL
-                        <div className="relative w-full h-full bg-gray-900 flex flex-col items-center justify-center text-white">
-                            <div className="text-center">
-                                <Camera className="h-12 w-12 mx-auto mb-2 text-gray-400" />
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Info da foto */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="text-white">
-                            <p className="text-sm font-medium">Foto #{index + 1}</p>
-                            {tweet?.text && (
-                                <p className="text-xs text-gray-300 mt-1 line-clamp-1">
-                                    {tweet.text.slice(0, 60)}...
-                                </p>
-                            )}
-                            <p className="text-xs text-blue-300 mt-1">
-                                @{tweet?.username || 'twitter'}
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Botões de ação */}
-                    <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
-                        {/* Botão de fullscreen */}
-                        <button
-                            onClick={() => setIsFullscreen(true)}
-                            className="bg-black/70 hover:bg-black/90 text-white p-2 rounded-full transition-colors"
-                            title="Visualizar em tela cheia"
-                        >
-                            <Maximize2 className="h-4 w-4" />
-                        </button>
-
-                        {/* Botão do Twitter */}
-                        <button
-                            onClick={openInTwitter}
-                            className="bg-black/70 hover:bg-black/90 text-white p-2 rounded-full transition-colors"
-                            title="Abrir no Twitter"
-                        >
-                            <Twitter className="h-4 w-4" />
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* Modal de fullscreen */}
-            <Dialog open={isFullscreen} onOpenChange={setIsFullscreen}>
-                <DialogContent className="max-w-[95vw] max-h-[95vh] w-full h-full p-0 flex flex-col">
-                    <DialogHeader className="p-4 pb-2 flex-shrink-0">
-                        <DialogTitle>
-                            Foto do Twitter
-                        </DialogTitle>
-                    </DialogHeader>
-                    <div className="flex-1 p-4 pt-0 min-h-0">
-                        {media.url && (
-                            <div className="w-full h-full flex items-center justify-center">
-                                <Image
-                                    src={media.url}
-                                    alt={`Foto do Twitter #${index + 1}`}
-                                    width={1200}
-                                    height={1200}
-                                    className="max-w-full max-h-full object-contain rounded-lg"
-                                    priority
-                                />
-                            </div>
-                        )}
-                    </div>
-                </DialogContent>
-            </Dialog>
-        </>
-    );
-};
-
 // Componente para fotos enviadas
 const UploadedPhotoCard = ({ photo }: { photo: UploadedPhoto }) => {
     const [imageError, setImageError] = useState(false);
@@ -201,17 +61,17 @@ const UploadedPhotoCard = ({ photo }: { photo: UploadedPhoto }) => {
 
     return (
         <>
-            <div className="group relative aspect-square overflow-hidden rounded-lg border border-primary/20 hover:border-primary hover:shadow-neon-red-light transition-all">
-                <div className="relative w-full h-full bg-black">
+            <div className="group relative w-full overflow-hidden rounded-lg border border-primary/20 hover:border-primary hover:shadow-neon-red-light transition-all">
+                <div className="relative w-full bg-black">
                     {photo.imageUrl && !imageError ? (
                         <>
                             {/* Imagem principal */}
                             <Image
                                 src={photo.imageUrl}
                                 alt={photo.title}
-                                width={600}
-                                height={600}
-                                className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                                width={1200}
+                                height={800}
+                                className="w-full h-auto object-contain transition-transform duration-300 group-hover:scale-105"
                                 onError={handleImageError}
                                 onLoad={handleImageLoad}
                             />
@@ -283,226 +143,6 @@ const UploadedPhotoCard = ({ photo }: { photo: UploadedPhoto }) => {
     );
 };
 
-const TwitterPhotos = () => {
-    const { toast } = useToast();
-    const [tweets, setTweets] = useState<TweetWithMedia[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [currentUsername, setCurrentUsername] = useState<string | null>(null);
-    const [nextToken, setNextToken] = useState<string | undefined>(undefined);
-    const [isLoadingMore, setIsLoadingMore] = useState(false);
-    const [usingCache, setUsingCache] = useState(false);
-
-    useEffect(() => {
-        const fetchTwitter = async () => {
-            console.log('🔄 [FOTOS] Iniciando fetch híbrido (Firebase Auth + Twitter API)...');
-            setIsLoading(true);
-            setError(null);
-
-            try {
-                // Buscar usuário autenticado do Firebase
-                const { getAuth } = await import('firebase/auth');
-                const { app } = await import('@/lib/firebase');
-                const auth = getAuth(app);
-
-                const user = auth.currentUser;
-                if (!user) {
-                    console.log('❌ [FOTOS] Usuário não autenticado no Firebase');
-                    setError('Nenhuma conta do Twitter conectada. Por favor, autentique-se na página de administração.');
-                    setIsLoading(false);
-                    return;
-                }
-
-                console.log('✅ [FOTOS] Usuário autenticado:', user.uid);
-
-                // Obter token de autenticação
-                const accessToken = await user.getIdToken();
-                console.log('🔑 [FOTOS] Token obtido');
-
-                // Verificar cache FIRESTORE primeiro (compartilhado entre dispositivos)
-                const cachedPhotos = await getCachedPhotos(user.uid);
-                if (cachedPhotos && cachedPhotos.length > 0) {
-                    console.log('📦 [FOTOS] Usando cache FIRESTORE com', cachedPhotos.length, 'fotos');
-                    setTweets(cachedPhotos);
-                    setUsingCache(true);
-                    setIsLoading(false);
-
-                    const stats = getCacheStats();
-                    toast({
-                        title: '📦 Cache Compartilhado',
-                        description: `${cachedPhotos.length} fotos do Firestore (visível em todos dispositivos)`,
-                    });
-                }
-
-                // Chamar API híbrida (não precisa passar username, a API busca do Firebase)
-                console.log('🌐 [FOTOS] Chamando API híbrida...');
-
-                const response = await fetch('/api/twitter/fotos', {
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                    },
-                });
-
-                console.log('📡 [FOTOS] Resposta HTTP:', response.status, response.statusText);
-
-                const data = await response.json();
-                console.log('📦 [FOTOS] Dados recebidos:', {
-                    success: data.success,
-                    tweets_count: data.tweets?.length || 0,
-                    username: data.username,
-                    cached: data.cached,
-                    error: data.error
-                });
-
-                if (data.success) {
-                    const newTweets = data.tweets || [];
-                    console.log('✅ [FOTOS] Fotos carregadas com sucesso:', newTweets.length);
-                    setTweets(newTweets);
-                    setCurrentUsername(data.username);
-                    setUsingCache(false);
-
-                    // Salvar no cache (5-10 primeiros)
-                    if (newTweets.length > 0) {
-                        console.log('💾 [FOTOS] Salvando', newTweets.length, 'fotos no cache');
-                        cachePhotos(newTweets, user.uid);
-                    }
-
-                    if (newTweets.length === 0) {
-                        console.log('⚠️ [FOTOS] Nenhuma foto encontrada');
-                        toast({
-                            title: 'Aviso',
-                            description: `Nenhuma foto encontrada para @${data.username}`,
-                        });
-                    }
-                } else {
-                    console.log('❌ [FOTOS] Resposta de erro da API:', data.error);
-                    throw new Error(data.error || 'Falha ao buscar fotos do Twitter');
-                }
-            } catch (e: any) {
-                const errorMessage = e.message || "Ocorreu um erro desconhecido.";
-                console.error('❌ [FOTOS] Erro ao buscar fotos:', e);
-                console.log('❌ [FOTOS] Detalhes do erro:', {
-                    message: errorMessage,
-                    name: e.name,
-                    stack: e.stack
-                });
-
-                // Se temos cache, continuar usando ele
-                if (usingCache) {
-                    toast({
-                        title: 'Erro ao atualizar',
-                        description: 'Usando fotos do cache. ' + errorMessage,
-                    });
-                } else {
-                    setError(`Não foi possível carregar o feed do Twitter. Motivo: ${errorMessage}`);
-                    console.error('Erro ao buscar fotos do Twitter:', e);
-                    toast({
-                        variant: 'destructive',
-                        title: 'Erro ao Carregar o Feed do Twitter',
-                        description: errorMessage,
-                    });
-                }
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchTwitter();
-    }, [toast]);
-
-    const loadMore = async () => {
-        if (!currentUsername || !nextToken) return;
-        setIsLoadingMore(true);
-        try {
-            const params = new URLSearchParams({ username: currentUsername, max_results: '50', pagination_token: nextToken });
-            const response = await fetch(`/api/twitter/fotos?${params.toString()}`);
-            const data = await response.json();
-            if (data.success) {
-                setTweets(prev => [...prev, ...(data.tweets || [])]);
-                setNextToken(data.next_token);
-            }
-        } finally {
-            setIsLoadingMore(false);
-        }
-    };
-
-    const photos = tweets.flatMap(tweet =>
-        tweet.media.filter(m => m.type === 'photo')
-    );
-
-    if (isLoading) return <FeedLoading message={`Carregando fotos do X (@${currentUsername})...`} />;
-    if (error) return <FeedError message={error} />;
-    if (!currentUsername) return <FeedError message="Nenhuma conta do Twitter conectada. Por favor, conecte sua conta na página de administração para ver as fotos." />;
-
-    return (
-        <div className="space-y-4">
-            <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                <div className="flex items-center gap-2">
-                    <Twitter className="h-5 w-5 text-blue-500" />
-                    <span className="font-medium">Conta: @{currentUsername}</span>
-                    <span className="text-sm text-muted-foreground">({photos.length} fotos)</span>
-                </div>
-                <button
-                    onClick={async () => {
-                        setIsLoading(true);
-                        try {
-                            const accessToken = localStorage.getItem('firebase_token');
-                            const response = await fetch('/api/twitter/fotos?force=true', {
-                                headers: {
-                                    'Authorization': `Bearer ${accessToken}`,
-                                },
-                            });
-                            const data = await response.json();
-                            if (data.success) {
-                                setTweets(data.tweets || []);
-                                toast({
-                                    title: '✅ Atualizado',
-                                    description: `${data.tweets?.length || 0} fotos recarregadas da API`,
-                                });
-                            }
-                        } catch (error) {
-                            toast({
-                                variant: 'destructive',
-                                title: 'Erro ao atualizar',
-                                description: 'Não foi possível forçar atualização',
-                            });
-                        } finally {
-                            setIsLoading(false);
-                        }
-                    }}
-                    className="flex items-center gap-2 text-sm text-primary hover:underline"
-                    disabled={isLoading}
-                >
-                    <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
-                    {isLoading ? 'Atualizando...' : 'Forçar Atualização'}
-                </button>
-            </div>
-
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                {photos.map((media, index) => {
-                    const tweet = tweets.find(t => t.media.some(m => m.media_key === media.media_key));
-
-                    return (
-                        <TwitterPhotoCard
-                            key={media.media_key}
-                            media={media}
-                            tweet={tweet}
-                            index={index}
-                        />
-                    );
-                })}
-            </div>
-            {nextToken && (
-                <div className="flex justify-center mt-6">
-                    <button onClick={loadMore} disabled={isLoadingMore} className="text-sm text-primary hover:underline">
-                        {isLoadingMore ? 'Carregando...' : 'Carregar mais'}
-                    </button>
-                </div>
-            )}
-        </div>
-    );
-};
-
 // Componente para a aba de Uploads
 const UploadsFeed = () => {
     const { toast } = useToast();
@@ -542,7 +182,7 @@ const UploadsFeed = () => {
     if (photos.length === 0) return <FeedEmpty message="Nenhuma foto foi enviada ainda." />;
 
     return (
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className="flex flex-col gap-4">
             {photos.map(photo => (
                 <UploadedPhotoCard key={photo.id} photo={photo} />
             ))}
@@ -559,30 +199,11 @@ export default function PhotosPage() {
                         <Camera /> Galeria de Fotos
                     </CardTitle>
                     <CardDescription className="text-lg text-muted-foreground">
-                        Feeds de fotos de várias fontes.
+                        Fotos enviadas por upload.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <Tabs defaultValue="twitter" className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="twitter" className="flex items-center gap-2">
-                                <Twitter className="h-4 w-4" />
-                                Fotos do X
-                            </TabsTrigger>
-                            <TabsTrigger value="uploads" className="flex items-center gap-2">
-                                <Upload className="h-4 w-4" />
-                                Uploads
-                            </TabsTrigger>
-                        </TabsList>
-
-                        <TabsContent value="twitter" className="mt-6">
-                            <TwitterPhotos />
-                        </TabsContent>
-
-                        <TabsContent value="uploads" className="mt-6">
-                            <UploadsFeed />
-                        </TabsContent>
-                    </Tabs>
+                    <UploadsFeed />
                 </CardContent>
             </Card>
         </main>

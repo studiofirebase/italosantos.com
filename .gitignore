@@ -1,1 +1,111 @@
-node_modules
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Next.js
+.next/
+out/
+dist/
+build/
+
+# Production build
+/build
+
+# Misc
+.DS_Store
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+lerna-debug.log*
+firestore-debug.log
+*.log
+
+# Local env files
+.env
+.env*.local
+.env.private
+.env.docker
+.env.development
+.env.production
+.env.apple
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDX / Project IDX
+.idx/
+
+# Firebase
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+.genkit/
+firebase-genkit/
+
+# Python virtual environment
+.venv/
+venv/
+env/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Secrets & Credentials
+secrets/
+secrets/*.txt
+service_account.json
+service_accounts_key.json
+merchant_id.cer
+merchant_id.pem
+GoogleService-Info.plist
+
+# Certificates & Keys (Apple Pay, SSL, etc)
+certs/
+*.pem
+*.key
+*.cer
+*.p8
+*.p12
+*.pfx
+*.csr
+*.certSigningRequest
+
+# Build outputs
+build-log.txt
+build-output.log
+cloudbuild-*.log
+deploy-pid.txt
+
+# Google Cloud SDK
+google-cloud-sdk/
+
+# Cloudflare
+cloudflared
+
+# Reports
+reports/
+
+# Modified files tracking
+.modified
+
+# Docker
+.dockerignore
+
+# Temporary files
+*.tmp
+*.temp

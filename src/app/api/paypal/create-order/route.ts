@@ -1,34 +1,21 @@
 
 import { NextRequest, NextResponse } from 'next/server';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import { getPaypalBaseUrl } from '@/lib/paypal-config';
 
-// Função para obter um novo token de acesso do PayPal usando o refresh token
-async function getPayPalAccessToken(sellerId: string): Promise<string> {
-    const userDocRef = doc(db, 'users', sellerId, 'integrations', 'paypal');
-    const userDoc = await getDoc(userDocRef);
-
-    if (!userDoc.exists()) {
-        throw new Error('As credenciais de pagamento do vendedor não foram encontradas.');
-    }
-
-    const credentials = userDoc.data();
-    const { refreshToken, expiresAt } = credentials;
-
-    // Se o token ainda for válido, retorne-o (com uma margem de 5 minutos)
-    if (Date.now() < expiresAt - 5 * 60 * 1000) {
-        return credentials.accessToken;
-    }
-
-    // Se o token expirou, use o refresh token para obter um novo
+// Função simplificada para obter token de acesso usando credenciais do ambiente
+async function getPayPalAccessToken(): Promise<string> {
     const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
     const clientSecret = process.env.PAYPAL_CLIENT_SECRET;
-    const tokenUrl = `${getPaypalBaseUrl()}/v1/oauth2/token`;
+    
+    if (!clientId || !clientSecret) {
+        throw new Error('PayPal credentials not configured');
+    }
 
-    const params = new URLSearchParams();
-    params.append('grant_type', 'refresh_token');
-    params.append('refresh_token', refreshToken);
+    const isProduction = process.env.NEXT_PUBLIC_PAYPAL_ENV === 'production';
+    const tokenUrl = isProduction 
+        ? 'https://api-m.paypal.com/v1/oauth2/token'
+        : 'https://api-m.sandbox.paypal.com/v1/oauth2/token';
 
     const response = await fetch(tokenUrl, {
         method: 'POST',
@@ -36,32 +23,30 @@ async function getPayPalAccessToken(sellerId: string): Promise<string> {
             'Content-Type': 'application/x-www-form-urlencoded',
             'Authorization': `Basic ${Buffer.from(`${clientId}:${clientSecret}`).toString('base64')}`,
         },
-        body: params,
+        body: 'grant_type=client_credentials',
     });
 
     if (!response.ok) {
-        throw new Error('Falha ao renovar o token de acesso do PayPal.');
+        const error = await response.text();
+        console.error('PayPal Token Error:', error);
+        throw new Error('Failed to get PayPal access token');
     }
 
-    const newTokens = await response.json();
-
-    // Atualize os novos tokens no Firestore
-    await setDoc(userDocRef, {
-        ...credentials,
-        accessToken: newTokens.access_token,
-        expiresAt: Date.now() + newTokens.expires_in * 1000,
-    });
-
-    return newTokens.access_token;
+    const data = await response.json();
+    return data.access_token;
 }
 
 // Rota principal para criar o pedido
 export async function POST(request: NextRequest) {
     try {
-        const { productId, sellerId } = await request.json();
+        const body = await request.json();
+        console.log('[PayPal Create Order] Request body:', body);
+        
+        const { productId } = body;
 
-        if (!productId || !sellerId) {
-            return NextResponse.json({ error: 'ID do produto e ID do vendedor são obrigatórios.' }, { status: 400 });
+        if (!productId) {
+            console.error('[PayPal Create Order] Product ID missing');
+            return NextResponse.json({ error: 'Product ID is required' }, { status: 400 });
         }
 
         // 1. Buscar as informações do produto
@@ -69,37 +54,44 @@ export async function POST(request: NextRequest) {
         const productDoc = await getDoc(productDocRef);
 
         if (!productDoc.exists()) {
-            return NextResponse.json({ error: 'Produto não encontrado.' }, { status: 404 });
+            console.error('[PayPal Create Order] Product not found:', productId);
+            return NextResponse.json({ error: 'Product not found' }, { status: 404 });
         }
-        const product = productDoc.data();
-
-        // 2. Obter o token de acesso do vendedor
-        const accessToken = await getPayPalAccessToken(sellerId);
         
-        // 3. Obter o email do vendedor (PayPal Payouts)
-        const sellerInfoDocRef = doc(db, 'users', sellerId, 'integrations', 'paypal');
-        const sellerInfoDoc = await getDoc(sellerInfoDocRef);
-        const sellerEmail = sellerInfoDoc.data()?.email; // Assumindo que o email é salvo durante a conexão
+        const product = productDoc.data();
+        console.log('[PayPal Create Order] Product:', { id: productId, name: product.name, price: product.price });
 
-        if (!sellerEmail) {
-            return NextResponse.json({ error: 'Email do destinatário do PayPal não encontrado.' }, { status: 500 });
+        if (!product.price || product.price <= 0) {
+            console.error('[PayPal Create Order] Invalid price:', product.price);
+            return NextResponse.json({ error: 'Invalid product price' }, { status: 400 });
         }
 
-        // 4. Criar o pedido na API do PayPal (sandbox ou live conforme ambiente)
-        const createOrderUrl = `${getPaypalBaseUrl()}/v2/checkout/orders`;
+        // 2. Obter o token de acesso
+        console.log('[PayPal Create Order] Getting access token...');
+        const accessToken = await getPayPalAccessToken();
+        console.log('[PayPal Create Order] Access token obtained');
+
+        // 3. Criar o pedido na API do PayPal
+        const isProduction = process.env.NEXT_PUBLIC_PAYPAL_ENV === 'production';
+        const createOrderUrl = isProduction
+            ? 'https://api-m.paypal.com/v2/checkout/orders'
+            : 'https://api-m.sandbox.paypal.com/v2/checkout/orders';
+        
+        console.log('[PayPal Create Order] Using URL:', createOrderUrl, 'Production:', isProduction);
         
         const orderPayload = {
             intent: 'CAPTURE',
             purchase_units: [{
+                reference_id: productId,
+                description: product.name || 'Product purchase',
                 amount: {
                     currency_code: 'BRL',
                     value: product.price.toFixed(2),
                 },
-                payee: {
-                    email_address: sellerEmail
-                }
             }],
         };
+
+        console.log('[PayPal Create Order] Order payload:', JSON.stringify(orderPayload, null, 2));
 
         const paypalResponse = await fetch(createOrderUrl, {
             method: 'POST',
@@ -111,16 +103,26 @@ export async function POST(request: NextRequest) {
         });
 
         const payPalData = await paypalResponse.json();
+        console.log('[PayPal Create Order] Response status:', paypalResponse.status);
+        console.log('[PayPal Create Order] Response data:', JSON.stringify(payPalData, null, 2));
 
         if (!paypalResponse.ok) {
-            console.error('PayPal API Error:', payPalData);
-            return NextResponse.json({ error: 'Falha ao criar o pedido no PayPal.', details: payPalData }, { status: 500 });
+            console.error('[PayPal Create Order] API Error:', payPalData);
+            return NextResponse.json({ 
+                error: 'Failed to create PayPal order', 
+                details: payPalData 
+            }, { status: 500 });
         }
 
+        console.log('[PayPal Create Order] Success! Order ID:', payPalData.id);
         return NextResponse.json({ orderId: payPalData.id });
 
     } catch (error: any) {
-        console.error('Erro ao criar pedido:', error);
-        return NextResponse.json({ error: 'Erro interno do servidor.', message: error.message }, { status: 500 });
+        console.error('[PayPal Create Order] Exception:', error);
+        return NextResponse.json({ 
+            error: 'Internal server error', 
+            message: error.message,
+            stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+        }, { status: 500 });
     }
 }
