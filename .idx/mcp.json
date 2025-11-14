@@ -9,6 +9,57 @@
         "--only",
         "auth,firestore"
       ]
+    },
+    "mercadopago": {
+      "command": "node",
+      "args": [
+        "--loader",
+        "tsx",
+        "./mcp-servers/mercadopago/src/index.ts"
+      ],
+      "env": {
+        "MERCADOPAGO_ACCESS_TOKEN": "${MERCADOPAGO_ACCESS_TOKEN}"
+      }
+    },
+    "paypal": {
+      "command": "node",
+      "args": [
+        "--loader",
+        "tsx",
+        "./mcp-servers/paypal/src/index.ts"
+      ],
+      "env": {
+        "PAYPAL_CLIENT_ID": "${PAYPAL_CLIENT_ID}",
+        "PAYPAL_CLIENT_SECRET": "${PAYPAL_CLIENT_SECRET}",
+        "PAYPAL_MODE": "${PAYPAL_MODE:-sandbox}"
+      }
+    },
+    "applepay": {
+      "command": "node",
+      "args": [
+        "--loader",
+        "tsx",
+        "./mcp-servers/apple-pay/src/index.ts"
+      ],
+      "env": {
+        "APPLE_PAY_MERCHANT_ID": "${APPLE_PAY_MERCHANT_ID}",
+        "APPLE_PAY_MERCHANT_DOMAIN": "${APPLE_PAY_MERCHANT_DOMAIN}",
+        "APPLE_PAY_CERTIFICATE_PATH": "${APPLE_PAY_CERTIFICATE_PATH}",
+        "APPLE_PAY_KEY_PATH": "${APPLE_PAY_KEY_PATH}"
+      }
+    },
+    "googlepay": {
+      "command": "node",
+      "args": [
+        "--loader",
+        "tsx",
+        "./mcp-servers/googlepay/index.ts"
+      ],
+      "env": {
+        "GOOGLE_PAY_MERCHANT_ID": "${NEXT_PUBLIC_GOOGLE_PAY_MERCHANT_ID}",
+        "GOOGLE_PAY_MERCHANT_NAME": "${NEXT_PUBLIC_GOOGLE_PAY_MERCHANT_NAME}",
+        "GOOGLE_WALLET_ISSUER_ID": "${NEXT_PUBLIC_GOOGLE_WALLET_ISSUER_ID}"
+      }
     }
   }
 }

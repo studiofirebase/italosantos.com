@@ -1,0 +1,9 @@
+# Certificados Apple Pay
+certs/*.key
+certs/*.pem
+certs/*.cer
+certs/*.csr
+certs/.env.apple
+
+# Não ignorar o arquivo de verificação público
+!public/.well-known/apple-developer-merchantid-domain-association
